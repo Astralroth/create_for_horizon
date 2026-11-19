@@ -5,6 +5,10 @@
 //! game mixins are added on top of it.
 use mod_api::{self, Hooks, PlayerLoggedInEvent, ServerHost, Text};
 
+// The solver is not wired to the game yet; the next step reads blocks through it.
+#[allow(dead_code)]
+mod engine;
+
 #[derive(Default)]
 struct CreateMod;
 
