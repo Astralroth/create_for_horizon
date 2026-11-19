@@ -1,9 +1,15 @@
 {
   "template": "minecraft:oak_log",
+  "state_properties": {
+    "speed": { "type": "enum", "values": ["0", "1", "2", "4", "8", "16", "32", "64", "128", "256"] },
+    "reverse": { "type": "boolean" }
+  },
+  "default_state": { "speed": "0", "reverse": "false" },
   "properties": {
     "hardness": 1.5,
     "explosion_resistance": 3.0,
     "occludes": false,
+    "render_shape": "ENTITYBLOCK_ANIMATED",
     "sounds": "minecraft:oak_planks"
   },
   "shapes": {

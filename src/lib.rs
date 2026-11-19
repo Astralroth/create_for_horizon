@@ -4,14 +4,20 @@
 //! block part for each machine block, turns the blocks around a click into engine nodes and
 //! reports what the solver says.
 use mod_api::{
-    self, BlockKey, BlockPart, Hooks, InteractionResult, PlayerLoggedInEvent, Registrar,
+    self, BlockEntitySubmitEvent, BlockEntityTickEvent, BlockEntityTickReply,
+    BlockEntityTicksEvent, BlockKey, BlockPart, BlockEntityPart, BlockUpdateFlags, ClientHost,
+    HostBlockStates, Hooks, InteractionResult, PlayerLoggedInEvent, Registrar,
     RegistrationContext, ServerHost, Text, UseWithoutItemEvent,
 };
 use std::sync::OnceLock;
 
 mod engine;
+mod visual;
 
 use engine::{Axis, Kind, Network, Pos, Status};
+
+/// How often, in game ticks, a block looks at its network again.
+const REFRESH_TICKS: i64 = 10;
 
 /// The speed of the Creative Motor until it becomes settable.
 const MOTOR_RPM: f32 = 16.0;
@@ -56,6 +62,58 @@ impl Keys {
             None
         }
     }
+}
+
+impl Keys {
+    /// The block a registry name refers to, among the mod's kinetic blocks.
+    fn block_named(&self, name: &str) -> Option<BlockKey> {
+        match name {
+            "create:shaft" => Some(self.shaft),
+            "create:creative_motor" => Some(self.motor),
+            "create:cogwheel" => Some(self.small_cogwheel),
+            "create:large_cogwheel" => Some(self.large_cogwheel),
+            _ => None,
+        }
+    }
+}
+
+/// Reads the block at `pos` as a node of a network.
+fn node_at(
+    keys: &Keys,
+    level: &mod_api::LevelRef,
+    host: &dyn mod_api::Host,
+    pos: Pos,
+) -> Option<Kind> {
+    let block = level.block(host, pos)?;
+    let axis = axis_from(&level.block_property(host, pos, "axis")?)?;
+    keys.kind_of(block, axis)
+}
+
+/// Looks at the network the block at `pos` belongs to and, when it is time, writes how fast the
+/// block turns into its state so that every client draws it.
+fn refresh(host: &mut dyn ServerHost, pos: Pos) -> Option<()> {
+    let keys = KEYS.get()?;
+    let level = host.level(&host.dimension())?;
+    // Spread the work: each block looks every REFRESH_TICKS, at an offset of its own.
+    let phase = i64::from(pos[0]) * 31 + i64::from(pos[1]) * 17 + i64::from(pos[2]) * 13;
+    if (level.game_time(host)? + phase).rem_euclid(REFRESH_TICKS) != 0 {
+        return Some(());
+    }
+    let network = {
+        let reader: &dyn mod_api::Host = host;
+        engine::solve(|at| node_at(keys, &level, reader, at), pos)?
+    };
+    let rpm = network.member(pos)?.rpm;
+    let shown = visual::level(rpm);
+    let speed = visual::level_name(shown);
+    let reverse = if shown > 0 && rpm < 0.0 { "true" } else { "false" };
+    for (key, value) in [("speed", speed), ("reverse", reverse)] {
+        if level.block_property(host, pos, key).as_deref() != Some(value) {
+            // Tell clients, but not the neighbours: nothing here reacts to a neighbour change.
+            host.set_block_property_with(pos, key, value, BlockUpdateFlags::CLIENTS.bits());
+        }
+    }
+    Some(())
 }
 
 /// The message a click on the block at `pos` shows.
@@ -111,6 +169,55 @@ impl BlockPart for Machine {
     }
 }
 
+/// The block entity every kinetic block has: it looks at its network on the server and draws
+/// the turning block on the client.
+struct Kinetic;
+
+/// A block entity part also needs its block behaviour; `Machine` has all of it already.
+#[mod_api::horizon_part]
+impl BlockPart for Kinetic {}
+
+#[mod_api::horizon_part]
+impl BlockEntityPart for Kinetic {
+    fn block_entity_ticks(&self, _: &dyn mod_api::Host, event: &mut BlockEntityTicksEvent<'_>) {
+        event.ticks = true;
+    }
+
+    fn block_entity_tick(&self, host: &mut dyn ServerHost, event: &mut BlockEntityTickEvent<'_>) {
+        // The tick edits no saved data, so the chunk is not marked dirty.
+        *event.reply = BlockEntityTickReply::Unchanged;
+        let _ = refresh(host, event.pos);
+    }
+
+    fn block_entity_submit(&self, host: &dyn ClientHost, event: &mut BlockEntitySubmitEvent<'_>) {
+        let Some(keys) = KEYS.get() else { return };
+        let Some(block) = keys.block_named(event.block) else {
+            return;
+        };
+        let states = host.block_states();
+        let property = |name: &str| event.state.property(&states, name).ok().flatten();
+        let Some(axis_name) = property("axis") else {
+            return;
+        };
+        let level = property("speed")
+            .and_then(visual::level_from_name)
+            .unwrap_or(0);
+        let reverse = property("reverse") == Some("true");
+        let vector = match axis_from(axis_name) {
+            Some(Axis::X) => [1.0, 0.0, 0.0],
+            Some(Axis::Y) => [0.0, 1.0, 0.0],
+            Some(Axis::Z) => [0.0, 0.0, 1.0],
+            None => return,
+        };
+        let degrees = visual::degrees(level, reverse, event.draw.animation_time());
+        let draw = &mut *event.draw;
+        draw.push();
+        draw.rotate_about(vector, degrees, [0.5; 3]);
+        draw.block(block, &[("axis", axis_name)]);
+        draw.pop();
+    }
+}
+
 #[derive(Default)]
 struct CreateMod;
 
@@ -132,6 +239,13 @@ impl Hooks for CreateMod {
         ] {
             registrar.block_part(block, Machine);
         }
+        let kinetic = registrar
+            .block_entity_type("kinetic")
+            .blocks(&["shaft", "creative_motor", "cogwheel", "large_cogwheel"])
+            .build();
+        registrar
+            .block_entity_part(&kinetic, Kinetic)
+            .expect("kinetic is a native block entity type");
         let _ = KEYS.set(keys);
     }
 
