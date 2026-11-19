@@ -1,0 +1,26 @@
+{
+  "template": "minecraft:oak_log",
+  "properties": {
+    "hardness": 1.5,
+    "explosion_resistance": 4.0,
+    "requires_tool": true,
+    "occludes": false,
+    "sounds": "minecraft:andesite"
+  },
+  "shapes": {
+    "properties": ["axis"],
+    "values": {
+      "x": [[0, 0.375, 0.375, 1, 0.625, 0.625]],
+      "y": [[0.375, 0, 0.375, 0.625, 1, 0.625]],
+      "z": [[0.375, 0.375, 0, 0.625, 0.625, 1]]
+    }
+  },
+  "collision_shapes": {
+    "properties": ["axis"],
+    "values": {
+      "x": [[0, 0.375, 0.375, 1, 0.625, 0.625]],
+      "y": [[0.375, 0, 0.375, 0.625, 1, 0.625]],
+      "z": [[0.375, 0.375, 0, 0.625, 0.625, 1]]
+    }
+  }
+}

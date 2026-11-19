@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": ["minecraft:iron_nugget", "minecraft:stick"],
+  "result": { "id": "create:shaft", "count": 2 }
+}
