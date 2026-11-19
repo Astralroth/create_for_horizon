@@ -138,6 +138,12 @@ fn describe(network: &Network, pos: Pos) -> String {
     }
 }
 
+/// Whether a click on a machine block shows the network report: only with an empty hand.
+/// Any held item keeps the click, so blocks can be placed against machines without sneaking.
+fn reports_on_click(holding_item: bool) -> bool {
+    !holding_item
+}
+
 /// Behaviour shared by every machine block.
 struct Machine;
 
@@ -149,8 +155,14 @@ impl BlockPart for Machine {
         host: &mut dyn ServerHost,
         event: &mut UseWithoutItemEvent<'_>,
     ) -> Option<InteractionResult> {
-        let keys = KEYS.get()?;
         let click = event.click;
+        // The game tries this after the held item's own use, even when the hand is not empty.
+        // With an item in hand the click belongs to the item, for example a block being placed
+        // against this one, so answer nothing and let it go on.
+        if !reports_on_click(click.stack.is_some()) {
+            return None;
+        }
+        let keys = KEYS.get()?;
         let player = host.player(click.player)?;
         let level = player.level(host)?;
         let network = {
@@ -261,6 +273,14 @@ impl Hooks for CreateMod {
 mod tests {
     use super::*;
     use engine::{Member, solve};
+
+    #[test]
+    fn a_held_item_keeps_the_click() {
+        // Regression: the report used to consume every click, so a block could not be placed
+        // against a shaft without sneaking.
+        assert!(reports_on_click(false));
+        assert!(!reports_on_click(true));
+    }
 
     #[test]
     fn axes_parse_from_state_values() {
