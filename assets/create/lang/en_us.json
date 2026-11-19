@@ -3,6 +3,7 @@
   "block.create.creative_motor": "Creative Motor",
   "block.create.cogwheel": "Cogwheel",
   "block.create.large_cogwheel": "Large Cogwheel",
+  "block.create.mechanical_drill": "Mechanical Drill",
   "item.create.wrench": "Wrench",
   "itemGroup.create.kinetics": "Create for Horizon"
 }

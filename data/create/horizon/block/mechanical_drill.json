@@ -1,0 +1,40 @@
+{
+  "template": "minecraft:stone",
+  "state_properties": {
+    "facing": { "type": "enum", "values": ["north", "south", "east", "west", "up", "down"] },
+    "part": { "type": "enum", "values": ["body", "head"] },
+    "speed": { "type": "enum", "values": ["0", "1", "2", "4", "8", "16", "32", "64", "128", "256"] },
+    "reverse": { "type": "boolean" }
+  },
+  "default_state": { "facing": "north", "part": "body", "speed": "0", "reverse": "false" },
+  "properties": {
+    "hardness": 3.0,
+    "explosion_resistance": 6.0,
+    "requires_tool": true,
+    "occludes": false,
+    "render_shape": "ENTITYBLOCK_ANIMATED",
+    "sounds": "minecraft:andesite"
+  },
+  "shapes": {
+    "properties": ["facing"],
+    "values": {
+      "north": [[0.1875, 0.1875, 0, 0.8125, 0.8125, 1]],
+      "south": [[0.1875, 0.1875, 0, 0.8125, 0.8125, 1]],
+      "east": [[0, 0.1875, 0.1875, 1, 0.8125, 0.8125]],
+      "west": [[0, 0.1875, 0.1875, 1, 0.8125, 0.8125]],
+      "up": [[0.1875, 0, 0.1875, 0.8125, 1, 0.8125]],
+      "down": [[0.1875, 0, 0.1875, 0.8125, 1, 0.8125]]
+    }
+  },
+  "collision_shapes": {
+    "properties": ["facing"],
+    "values": {
+      "north": [[0.1875, 0.1875, 0, 0.8125, 0.8125, 1]],
+      "south": [[0.1875, 0.1875, 0, 0.8125, 0.8125, 1]],
+      "east": [[0, 0.1875, 0.1875, 1, 0.8125, 0.8125]],
+      "west": [[0, 0.1875, 0.1875, 1, 0.8125, 0.8125]],
+      "up": [[0.1875, 0, 0.1875, 0.8125, 1, 0.8125]],
+      "down": [[0.1875, 0, 0.1875, 0.8125, 1, 0.8125]]
+    }
+  }
+}

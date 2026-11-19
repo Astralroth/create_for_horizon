@@ -1,0 +1,33 @@
+{
+  "textures": {
+    "metal": "minecraft:block/iron_block",
+    "bit": "minecraft:block/raw_iron_block",
+    "particle": "minecraft:block/iron_block"
+  },
+  "elements": [
+    {
+      "from": [4, 4, 3],
+      "to": [12, 12, 6],
+      "faces": {
+        "down": { "uv": [4, 3, 12, 6], "texture": "#metal" },
+        "up": { "uv": [4, 3, 12, 6], "texture": "#metal" },
+        "north": { "uv": [4, 4, 12, 12], "texture": "#metal" },
+        "south": { "uv": [4, 4, 12, 12], "texture": "#metal" },
+        "west": { "uv": [3, 4, 6, 12], "texture": "#metal" },
+        "east": { "uv": [3, 4, 6, 12], "texture": "#metal" }
+      }
+    },
+    {
+      "from": [6, 6, 0],
+      "to": [10, 10, 3],
+      "faces": {
+        "down": { "uv": [6, 0, 10, 3], "texture": "#bit" },
+        "up": { "uv": [6, 0, 10, 3], "texture": "#bit" },
+        "north": { "uv": [6, 6, 10, 10], "texture": "#bit" },
+        "south": { "uv": [6, 6, 10, 10], "texture": "#bit" },
+        "west": { "uv": [0, 6, 3, 10], "texture": "#bit" },
+        "east": { "uv": [0, 6, 3, 10], "texture": "#bit" }
+      }
+    }
+  ]
+}

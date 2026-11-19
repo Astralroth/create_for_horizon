@@ -96,9 +96,7 @@ pub enum Kind {
         rpm: f32,
         capacity: f32,
     },
-    /// A machine that uses `impact` stress units for every RPM it turns at. No block builds it
-    /// yet; the first machine does.
-    #[allow(dead_code)]
+    /// A machine that uses `impact` stress units for every RPM it turns at.
     Consumer { axis: Axis, impact: f32 },
 }
 

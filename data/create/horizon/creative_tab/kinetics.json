@@ -6,6 +6,7 @@
     "create:cogwheel",
     "create:large_cogwheel",
     "create:creative_motor",
+    "create:mechanical_drill",
     "create:wrench"
   ]
 }

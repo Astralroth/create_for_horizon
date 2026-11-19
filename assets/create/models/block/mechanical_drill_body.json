@@ -1,0 +1,20 @@
+{
+  "textures": {
+    "body": "minecraft:block/polished_deepslate",
+    "particle": "minecraft:block/polished_deepslate"
+  },
+  "elements": [
+    {
+      "from": [3, 3, 6],
+      "to": [13, 13, 16],
+      "faces": {
+        "down": { "uv": [3, 6, 13, 16], "texture": "#body" },
+        "up": { "uv": [3, 6, 13, 16], "texture": "#body" },
+        "north": { "uv": [3, 3, 13, 13], "texture": "#body" },
+        "south": { "uv": [3, 3, 13, 13], "texture": "#body" },
+        "west": { "uv": [6, 3, 16, 13], "texture": "#body" },
+        "east": { "uv": [6, 3, 16, 13], "texture": "#body" }
+      }
+    }
+  ]
+}

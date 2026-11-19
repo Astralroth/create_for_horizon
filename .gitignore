@@ -1,5 +1,7 @@
 /target
 /.horizon
+# Local editor data.
+/.vs
 # Plain cargo pins the SDK's own crates here. Only registry dependencies of the mod
 # itself belong in a lock, and it is generated with `horizon-launcher native-lock .`.
 /Cargo.lock
