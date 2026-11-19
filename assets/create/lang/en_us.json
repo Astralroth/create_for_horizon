@@ -1,5 +1,7 @@
 {
   "block.create.shaft": "Shaft",
   "block.create.creative_motor": "Creative Motor",
+  "block.create.cogwheel": "Cogwheel",
+  "block.create.large_cogwheel": "Large Cogwheel",
   "itemGroup.create.kinetics": "Create for Horizon"
 }

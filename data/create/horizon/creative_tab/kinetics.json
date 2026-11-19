@@ -1,5 +1,5 @@
 {
   "title": "Create for Horizon",
   "icon": "create:shaft",
-  "items": ["create:shaft", "create:creative_motor"]
+  "items": ["create:shaft", "create:cogwheel", "create:large_cogwheel", "create:creative_motor"]
 }

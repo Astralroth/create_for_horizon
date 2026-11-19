@@ -1,0 +1,33 @@
+{
+  "textures": {
+    "disc": "minecraft:block/oak_planks",
+    "axle": "minecraft:block/polished_andesite",
+    "particle": "minecraft:block/oak_planks"
+  },
+  "elements": [
+    {
+      "from": [2, 7, 2],
+      "to": [14, 9, 14],
+      "faces": {
+        "down": { "uv": [2, 2, 14, 14], "texture": "#disc" },
+        "up": { "uv": [2, 2, 14, 14], "texture": "#disc" },
+        "north": { "uv": [2, 7, 14, 9], "texture": "#disc" },
+        "south": { "uv": [2, 7, 14, 9], "texture": "#disc" },
+        "west": { "uv": [2, 7, 14, 9], "texture": "#disc" },
+        "east": { "uv": [2, 7, 14, 9], "texture": "#disc" }
+      }
+    },
+    {
+      "from": [6, 0, 6],
+      "to": [10, 16, 10],
+      "faces": {
+        "down": { "uv": [6, 6, 10, 10], "texture": "#axle" },
+        "up": { "uv": [6, 6, 10, 10], "texture": "#axle" },
+        "north": { "uv": [6, 0, 10, 16], "texture": "#axle" },
+        "south": { "uv": [6, 0, 10, 16], "texture": "#axle" },
+        "west": { "uv": [6, 0, 10, 16], "texture": "#axle" },
+        "east": { "uv": [6, 0, 10, 16], "texture": "#axle" }
+      }
+    }
+  ]
+}

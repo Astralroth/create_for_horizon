@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": ["create:shaft", "minecraft:oak_planks"],
+  "result": { "id": "create:cogwheel" }
+}
