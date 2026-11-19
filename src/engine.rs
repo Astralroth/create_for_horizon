@@ -44,6 +44,43 @@ impl Axis {
             Axis::Z => 2,
         }
     }
+
+    /// The axis of a unit face vector such as `[0, 1, 0]`, or `None` for anything else.
+    pub fn of_face(face: [i32; 3]) -> Option<Axis> {
+        let nonzero: Vec<usize> = (0..3).filter(|i| face[*i] != 0).collect();
+        match nonzero.as_slice() {
+            [0] => Some(Axis::X),
+            [1] => Some(Axis::Y),
+            [2] => Some(Axis::Z),
+            _ => None,
+        }
+    }
+
+    /// The state value that spells this axis.
+    pub fn name(self) -> &'static str {
+        match self {
+            Axis::X => "x",
+            Axis::Y => "y",
+            Axis::Z => "z",
+        }
+    }
+
+    /// Where a block turning about this axis ends up after a quarter turn about `face`, the axis
+    /// of the face a wrench was used on. Turning about another axis takes the third axis; a face
+    /// on the block's own axis cannot turn it, so the axis steps on, X to Y to Z and back.
+    pub fn turned_about(self, face: Axis) -> Axis {
+        if face == self {
+            return match self {
+                Axis::X => Axis::Y,
+                Axis::Y => Axis::Z,
+                Axis::Z => Axis::X,
+            };
+        }
+        Axis::ALL
+            .into_iter()
+            .find(|axis| *axis != self && *axis != face)
+            .unwrap_or(self)
+    }
 }
 
 /// What a block does in a network.
@@ -632,6 +669,60 @@ mod tests {
             ([1, -1, 1], consumer(Axis::Y, 10.0)),
         ];
         assert_eq!(solve(world(&geared), [1, -1, 1]).unwrap().stress, 80.0);
+    }
+
+    #[test]
+    fn a_quarter_turn_about_another_axis_takes_the_third_axis() {
+        assert_eq!(Axis::X.turned_about(Axis::Y), Axis::Z);
+        assert_eq!(Axis::X.turned_about(Axis::Z), Axis::Y);
+        assert_eq!(Axis::Y.turned_about(Axis::X), Axis::Z);
+        assert_eq!(Axis::Y.turned_about(Axis::Z), Axis::X);
+        assert_eq!(Axis::Z.turned_about(Axis::X), Axis::Y);
+        assert_eq!(Axis::Z.turned_about(Axis::Y), Axis::X);
+    }
+
+    #[test]
+    fn a_face_on_the_blocks_own_axis_steps_the_axis_on() {
+        assert_eq!(Axis::X.turned_about(Axis::X), Axis::Y);
+        assert_eq!(Axis::Y.turned_about(Axis::Y), Axis::Z);
+        assert_eq!(Axis::Z.turned_about(Axis::Z), Axis::X);
+    }
+
+    #[test]
+    fn every_wrench_click_changes_the_axis_and_never_lands_on_the_clicked_one() {
+        for start in Axis::ALL {
+            for face in Axis::ALL {
+                let turned = start.turned_about(face);
+                assert_ne!(turned, start, "start {start:?}, face {face:?}");
+                assert_ne!(turned, face, "start {start:?}, face {face:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn repeated_clicks_on_one_face_alternate_between_the_other_two_axes() {
+        // Turning about X can only put a block on Y or Z, so clicking the same X face again and
+        // again flips between them. Another face is needed to bring the X axis back.
+        let mut axis = Axis::Y;
+        let mut seen = Vec::new();
+        for _ in 0..4 {
+            axis = axis.turned_about(Axis::X);
+            seen.push(axis);
+        }
+        assert_eq!(seen, [Axis::Z, Axis::Y, Axis::Z, Axis::Y]);
+        assert_eq!(Axis::Y.turned_about(Axis::Z), Axis::X);
+    }
+
+    #[test]
+    fn faces_map_to_their_axis_and_names_round_trip() {
+        assert_eq!(Axis::of_face([1, 0, 0]), Some(Axis::X));
+        assert_eq!(Axis::of_face([0, -1, 0]), Some(Axis::Y));
+        assert_eq!(Axis::of_face([0, 0, 1]), Some(Axis::Z));
+        assert_eq!(Axis::of_face([0, 0, 0]), None);
+        assert_eq!(Axis::of_face([1, 1, 0]), None);
+        assert_eq!(Axis::X.name(), "x");
+        assert_eq!(Axis::Y.name(), "y");
+        assert_eq!(Axis::Z.name(), "z");
     }
 
     #[test]

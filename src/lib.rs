@@ -4,10 +4,10 @@
 //! block part for each machine block, turns the blocks around a click into engine nodes and
 //! reports what the solver says.
 use mod_api::{
-    self, BlockEntitySubmitEvent, BlockEntityTickEvent, BlockEntityTickReply,
-    BlockEntityTicksEvent, BlockKey, BlockPart, BlockEntityPart, BlockUpdateFlags, ClientHost,
-    HostBlockStates, Hooks, InteractionResult, PlayerLoggedInEvent, Registrar,
-    RegistrationContext, ServerHost, Text, UseWithoutItemEvent,
+    self, BlockEntityPart, BlockEntitySubmitEvent, BlockEntityTickEvent, BlockEntityTickReply,
+    BlockEntityTicksEvent, BlockKey, BlockPart, BlockUpdateFlags, ClientHost, Hooks,
+    HostBlockStates, InteractionResult, ItemKey, PlayerLoggedInEvent, Registrar,
+    RegistrationContext, ServerHost, Text, UseItemOnEvent, UseWithoutItemEvent,
 };
 use std::sync::OnceLock;
 
@@ -30,6 +30,7 @@ struct Keys {
     motor: BlockKey,
     small_cogwheel: BlockKey,
     large_cogwheel: BlockKey,
+    wrench: ItemKey,
 }
 
 static KEYS: OnceLock<Keys> = OnceLock::new();
@@ -149,6 +150,27 @@ struct Machine;
 
 #[mod_api::horizon_part]
 impl BlockPart for Machine {
+    /// Right click with the wrench: turn the block a quarter turn about the face that was
+    /// clicked, so connected blocks can be lined up without breaking them.
+    fn use_item_on(
+        &self,
+        host: &mut dyn ServerHost,
+        event: &mut UseItemOnEvent<'_>,
+    ) -> Option<InteractionResult> {
+        let click = event.click;
+        let keys = KEYS.get()?;
+        if click.stack?.item() != keys.wrench {
+            return None;
+        }
+        let player = host.player(click.player)?;
+        let level = player.level(host)?;
+        let current = axis_from(&level.block_property(host, click.pos, "axis")?)?;
+        let face = Axis::of_face(click.hit.face)?;
+        let turned = current.turned_about(face);
+        host.set_block_property(click.pos, "axis", turned.name());
+        Some(InteractionResult::SuccessServer)
+    }
+
     /// Right click with an empty hand: report the kinetic network the block belongs to.
     fn use_without_item(
         &self,
@@ -242,6 +264,7 @@ impl Hooks for CreateMod {
             motor: registrar.block_key("create:creative_motor"),
             small_cogwheel: registrar.block_key("create:cogwheel"),
             large_cogwheel: registrar.block_key("create:large_cogwheel"),
+            wrench: registrar.item_key("create:wrench"),
         };
         for block in [
             keys.shaft,
