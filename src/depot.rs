@@ -60,6 +60,16 @@ fn show(
     let _ = level.send_block_updated(host, pos);
 }
 
+/// How many copies of the item to draw for a stack of `count`: one for a single item, two up to
+/// sixteen and three beyond, as dropped items pile up, so a stack looks like one.
+pub fn copies_shown(count: u32) -> u32 {
+    match count {
+        0 | 1 => 1,
+        2..=16 => 2,
+        _ => 3,
+    }
+}
+
 /// Clicks on the depot.
 pub struct DepotBlock;
 
@@ -218,10 +228,15 @@ impl BlockEntityPart for DepotEntity {
         let Some(stack) = ItemStack::from_nbt(host, shown) else {
             return;
         };
-        draw.push();
-        draw.translate([0.5, 0.3125, 0.5]);
-        draw.item(&stack, ItemDisplayContext::Ground, None, 0);
-        draw.pop();
+        // Lying flat on the depot, one copy for a single item and a small pile for a stack.
+        for copy in 0..copies_shown(stack.count()) {
+            let step = copy as f32;
+            draw.push();
+            draw.translate([0.5 + 0.04 * step, 0.28 + 0.07 * step, 0.5 - 0.03 * step]);
+            draw.rotate_about([1.0, 0.0, 0.0], 90.0, [0.0; 3]);
+            draw.item(&stack, ItemDisplayContext::Ground, None, 0);
+            draw.pop();
+        }
     }
 }
 
@@ -235,6 +250,17 @@ mod tests {
         assert_eq!(held_after_putting(1, false), 0);
         assert_eq!(held_after_putting(5, true), 5);
         assert_eq!(held_after_putting(0, false), 0);
+    }
+
+    #[test]
+    fn a_stack_is_drawn_as_a_small_pile() {
+        assert_eq!(copies_shown(1), 1);
+        assert_eq!(copies_shown(2), 2);
+        assert_eq!(copies_shown(16), 2);
+        assert_eq!(copies_shown(17), 3);
+        assert_eq!(copies_shown(64), 3);
+        // An empty count never happens for a real stack, but it still draws one.
+        assert_eq!(copies_shown(0), 1);
     }
 
     #[test]
