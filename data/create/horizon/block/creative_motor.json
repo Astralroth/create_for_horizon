@@ -2,9 +2,11 @@
   "template": "minecraft:oak_log",
   "state_properties": {
     "speed": { "type": "enum", "values": ["0", "1", "2", "4", "8", "16", "32", "64", "128", "256"] },
-    "reverse": { "type": "boolean" }
+    "reverse": { "type": "boolean" },
+    "rpm": { "type": "enum", "values": ["1", "2", "4", "8", "16", "32", "64", "128", "256"] },
+    "invert": { "type": "boolean" }
   },
-  "default_state": { "speed": "0", "reverse": "false" },
+  "default_state": { "speed": "0", "reverse": "false", "rpm": "16", "invert": "false" },
   "properties": {
     "hardness": 3.0,
     "explosion_resistance": 6.0,

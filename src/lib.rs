@@ -14,6 +14,7 @@ use std::sync::OnceLock;
 
 mod direction;
 mod engine;
+mod motor;
 mod visual;
 
 use direction::Direction;
@@ -21,8 +22,6 @@ use engine::{Axis, Kind, Network, Pos, Status};
 
 /// How often, in game ticks, a block looks at its network again.
 const REFRESH_TICKS: i64 = 10;
-/// The speed of the Creative Motor until it becomes settable.
-const MOTOR_RPM: f32 = 16.0;
 /// Stress units the Creative Motor carries for every RPM it turns at (16 RPM carries 16384).
 const MOTOR_CAPACITY: f32 = 1024.0;
 /// Stress units the drill uses for every RPM it turns at.
@@ -54,14 +53,15 @@ fn axis_from(value: &str) -> Option<Axis> {
 }
 
 impl Keys {
-    /// What a block of this kind does in a network, turning about `axis`.
-    fn kind_of(&self, block: BlockKey, axis: Axis) -> Option<Kind> {
+    /// What a block of this kind does in a network, turning about `axis`. `motor_rpm` is the
+    /// signed speed a Creative Motor is set to; other blocks ignore it.
+    fn kind_of(&self, block: BlockKey, axis: Axis, motor_rpm: f32) -> Option<Kind> {
         if block == self.shaft {
             Some(Kind::Shaft { axis })
         } else if block == self.motor {
             Some(Kind::Generator {
                 axis,
-                rpm: MOTOR_RPM,
+                rpm: motor_rpm,
                 capacity: MOTOR_CAPACITY,
             })
         } else if block == self.small_cogwheel {
@@ -108,7 +108,13 @@ fn node_at(
 ) -> Option<Kind> {
     let block = level.block(host, pos)?;
     let axis = turning_axis(|name| level.block_property(host, pos, name))?;
-    keys.kind_of(block, axis)
+    let motor_rpm = if block == keys.motor {
+        let (rpm, invert) = motor::read(|name| level.block_property(host, pos, name));
+        motor::signed(rpm, invert)
+    } else {
+        0.0
+    };
+    keys.kind_of(block, axis, motor_rpm)
 }
 
 /// Looks at the network the block at `pos` belongs to and, when it is time, writes how fast the
@@ -244,8 +250,25 @@ impl BlockPart for Machine {
         let level = player.level(host)?;
         let face = Axis::of_face(click.hit.face)?;
         if let Some(current) = level.block_property(host, click.pos, "axis") {
-            let turned = axis_from(&current)?.turned_about(face);
-            host.set_block_property(click.pos, "axis", turned.name());
+            let current = axis_from(&current)?;
+            if level.block(host, click.pos)? == keys.motor && face == current {
+                // The wrench on a shaft end of the motor reverses it instead of turning it.
+                let inverted =
+                    level.block_property(host, click.pos, "invert").as_deref() == Some("true");
+                host.set_block_property(
+                    click.pos,
+                    "invert",
+                    if inverted { "false" } else { "true" },
+                );
+                let text = if inverted {
+                    "Creative Motor: back to its normal direction."
+                } else {
+                    "Creative Motor: reversed."
+                };
+                let _ = player.tell(host, Text::literal(text));
+                return Some(InteractionResult::SuccessServer);
+            }
+            host.set_block_property(click.pos, "axis", current.turned_about(face).name());
         } else {
             let current = Direction::from_name(&level.block_property(host, click.pos, "facing")?)?;
             host.set_block_property(click.pos, "facing", current.turned_about(face).name());
@@ -269,6 +292,17 @@ impl BlockPart for Machine {
         let keys = KEYS.get()?;
         let player = host.player(click.player)?;
         let level = player.level(host)?;
+        if level.block(host, click.pos)? == keys.motor
+            && player.is_secondary_use_active(host) == Some(true)
+        {
+            // Sneaking on the motor steps its speed through the presets.
+            let (rpm, invert) = motor::read(|name| level.block_property(host, click.pos, name));
+            let next = motor::next(rpm);
+            host.set_block_property(click.pos, "rpm", motor::name(next));
+            let direction = if invert { ", reversed" } else { "" };
+            let _ = player.tell(host, Text::literal(format!("Creative Motor: {next} RPM{direction}.")));
+            return Some(InteractionResult::SuccessServer);
+        }
         let network = {
             let reader: &dyn mod_api::Host = host;
             engine::solve(|pos| node_at(keys, &level, reader, pos), click.pos)?
