@@ -78,6 +78,9 @@ Ways to make power other than the Creative Motor.
   by the torque of that current about the axle (`offset x flow`), 4 RPM per net push up to 16 RPM;
   currents that push opposite ways cancel. The Wrench on an end reverses it.
 - The Hand Crank has a shaft end only on the side it is stuck to (`Kind::Stub` in the solver).
+- Tried in the game: a shaft on the stuck-on side of a crank turns at 32 RPM and one on the handle
+  side does not; a wheel under a one-way channel turns at 4 RPM, and with two equal sources feeding
+  the same cell from opposite ends it stops.
 - Both carry 256 stress units per RPM; at rest they are plain joints, so a network passes through
   them. A source's capacity follows its speed, so several sources add up and must agree.
 
