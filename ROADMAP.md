@@ -162,8 +162,12 @@ when its template is one of a few classes (chest, barrel, hopper...), so the cli
 `player.open_menu(host, entity)`; a menu type needs at least one slot (the motor's is hidden and
 unreachable); the screen is drawn with `fill` and `text` and a press arrives as a menu button id.
 Tried: the screen opens, a press on the track set -8 RPM (`invert=true`, `rpm=8`) and the `>` button
-stepped it to -4. Not possible with the current SDK: dragging the knob (the drag hook cannot send a
-button to the server); a press anywhere on the track does the job. Mouse wheel not tried.
+stepped it to -4. Polish tried later: a tooltip names the speed under the pointer, and the left and
+right arrow keys step the speed (256 to 128 to 64 in the game). Not possible with the current SDK:
+dragging the knob (the drag hook cannot send a button to the server) and the mouse wheel (the wheel
+hook only hears gameplay scrolling, and the menu's type can be read only on the server); a press
+anywhere on the track does the job. The labels on the screen are numbers and "RPM", so they need no
+translation.
 
 (The original idea, as asked for:)
 

@@ -26,7 +26,7 @@ Horizon** creative tab.
 
 | Item | What it does |
 | --- | --- |
-| **Creative Motor** | A source. Right click it with an empty hand to open its screen: a slider from -256 to 256 RPM (a press anywhere on it sets that step; the two arrow buttons move one step), negative speeds turn it the other way. Sneak with an empty hand still steps its speed 1, 2, 4 ... 256 RPM; the Wrench on an end of the motor reverses it. It carries 1024 stress units per RPM. |
+| **Creative Motor** | A source. Right click it with an empty hand to open its screen: a slider from -256 to 256 RPM (a press anywhere on it sets that step and hovering shows the speed under the pointer; the two arrow buttons or the left and right arrow keys move one step), negative speeds turn it the other way. Sneak with an empty hand still steps its speed 1, 2, 4 ... 256 RPM; the Wrench on an end of the motor reverses it. It carries 1024 stress units per RPM. |
 | **Shaft** | Carries rotation in a line, at the same speed and direction. |
 | **Cogwheel** / **Large Cogwheel** | Mesh with other cogwheels to change direction and speed. |
 | **Gearbox** | Four shaft ends across its axis: turns a corner. A shaft straight through it comes out reversed. |
