@@ -117,7 +117,7 @@ Risk: low for correctness, high for taste. Test: look at every block and item in
 including powered clutch and gearshift and a gauge's dial; switch the game to Spanish and check the
 names and the click report; listen to the wrench, the motor clicks and a working drill.
 
-## M7 · Items on machines — M7a built, waiting for its first try in the game
+## M7 · Items on machines — M7a (Depot) built and tried in the game
 
 Processing that holds items: a **Millstone** and a **Mechanical Press** on a **Depot**.
 
@@ -128,7 +128,12 @@ Processing that holds items: a **Millstone** and a **Mechanical Press** on a **D
   **M7b** Press (a `create:pressing` recipe, progress, a ram), **M7c** Millstone (input and output
   slots, a `create:milling` recipe).
 
-Risk: medium for M7a (the first use of containers and of syncing an item to the client), then low.
+M7a works: right click puts one item on the depot and an empty hand takes it back; hoppers above and
+below fill and empty it; the item is drawn on the block and changes show at once (see the research
+note for how the client is told). Not done: the item is drawn upright rather than lying flat, and
+only the first item of a stack a hopper brings is shown as one item with its count unmarked.
+
+Risk for M7b and M7c: low to medium; the custom recipe type is the one thing left unconfirmed.
 
 ## M8 · Logistics (needs research)
 

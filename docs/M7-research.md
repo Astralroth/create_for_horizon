@@ -25,19 +25,29 @@ here has been run in the game yet.
 (the game turns the part by itself between updates). Worth switching to when M7 is done; not a
 requirement.
 
+## What M7a settled (tried in the game)
+
+1. **Transactions:** `host.transaction(|host, tx| ...)` (the `HostTransaction` trait) works inside
+   `use_item_on` and `use_without_item`; `entity.set_item_slot(host, tx, slot, stack)` then
+   `entity.set_changed(host)` writes the slot. The block entity comes from
+   `host.block_entity(level, pos)`.
+3. **Syncing the item to clients:** `set_client_update_fields` alone did **not** reach the client
+   until its chunk was sent again. What works: save the stack on show with
+   `entity.merge_data(host, {Shown: stack.to_nbt(host)})`, then `level.send_block_updated(host,
+   pos)`, and send it in `block_entity_update_tag` for chunk loads. The tick does the same for
+   changes made by hoppers. An empty compound under the same key tells clients the item is gone.
+4. **Hoppers:** a hopper below pulls the item out of the depot and a hopper above fills it, with
+   nothing but the declared `ModContainer`. A hopper puts a whole stack in; the depot keeps it.
+
+Also learned: an item stack's id cannot be written without a host (`to_nbt(host)`), so the stack
+on show has to be serialized where a host exists (a click or the tick), not in the update-tag hook.
+
 ## What is still unknown (to test before relying on it)
 
-1. **Creating a `Transaction`** inside `use_item_on` / `use_without_item`. Hooks that move items
-   seem to be handed one; if these two are not, the click has to go through a capability instead of
-   `set_item_slot`.
 2. **A custom recipe type with no declaration.** The notes say a type nobody uses "gives nothing"
    and a mod's own type has only its `json`, which suggests no registration is needed. To be
    confirmed with one `create:pressing` file that loads without an error and appears in
    `recipes_of_type`.
-3. **Syncing the held item to clients**, both live and when a chunk loads, through
-   `block_entity_update_tag`. The depot's look depends on it.
-4. **Hoppers and dropped items** around a `ModContainer`: expected to work, to be tried with a
-   hopper above and below a depot.
 5. **Which side a press takes from.** The depot below it is read through the `ITEMS` capability with
    `side = Up`, but the container's `faces` must then include the top.
 
