@@ -978,6 +978,10 @@ impl Hooks for CreateMod {
         registrar
             .block_entity_part(&kinetic, Kinetic)
             .expect("kinetic is a native block entity type");
+        // The press reads its recipes as data of a recipe type of the mod's own, which the game
+        // refuses to load unless the type and its serializer are declared.
+        registrar.register_recipe_type(press::RECIPE_TYPE);
+        registrar.register_raw_recipe_serializer(press::RECIPE_TYPE, press::RECIPE_TYPE);
         // The depot holds an item: a container for hoppers, clicks to put and take, and a block
         // entity of its own that draws the item.
         let depot_block = registrar.block_key("create:depot");

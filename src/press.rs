@@ -6,11 +6,11 @@ use crate::engine::Pos;
 use crate::{pressing, visual, work, KEYS, PROGRESS};
 use mod_api::{
     self, BlockEntityTickEvent, BlockEntityTickReply, BlockUpdateFlags, HostTransaction,
-    ItemResource, ItemStack, LevelRef, ResourceHandler, ServerHost, Tag, ITEMS,
+    ItemResource, ItemStack, LevelRef, ServerHost, Tag, ITEMS,
 };
 
 /// The recipe type the press reads.
-const RECIPE_TYPE: &str = "create:pressing";
+pub const RECIPE_TYPE: &str = "create:pressing";
 
 /// What the press would do now: which slot it works on, with what, and for how long.
 struct Job {
