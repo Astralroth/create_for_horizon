@@ -155,6 +155,25 @@ with riders, which is the hardest part of the original mod to reproduce.
 
 Risk: very high. Planned only after M7.
 
+## Idea · A speed screen for the motor (asked for by the user; not started)
+
+A small screen opened from the Creative Motor with a slider that sets its speed in both
+directions, from -256 to 256 RPM, in place of sneak-clicking through the presets and reversing
+with the Wrench.
+
+- The SDK supports it: a block can open a menu of a type the mod declares
+  (`data/create/horizon/menu/`), a block entity can keep data slots the menu shows, and the client
+  half can lay out and draw the screen and hear clicks, drags and the mouse wheel
+  (`screen_click`, `screen_mouse_scrolled_pre`, `screen_mouse_button_released_pre`). There is
+  no ready-made slider widget (only buttons and text fields), so the slider is drawn by the mod.
+- Sketch: data slots hold the signed RPM; the slider snaps to the preset steps (powers of two) with
+  a plain number field for exact values; the pure `motor` module gains the mapping between the
+  slider's position and the signed speed, with tests.
+- Open questions: how a drag sends its value to the server (buttons that change a data slot are
+  the documented way), and whether to keep sneak-click as a shortcut.
+
+Risk: medium (the first custom screen of the mod).
+
 ## Out of scope for now
 
 Contraptions (bearings, pistons, gantries), fluids and pipes, trains, schematics. They are large,
