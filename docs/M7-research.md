@@ -42,16 +42,25 @@ requirement.
 Also learned: an item stack's id cannot be written without a host (`to_nbt(host)`), so the stack
 on show has to be serialized where a host exists (a click or the tick), not in the update-tag hook.
 
+## What M7b settled (tried in the game)
+
+2. **A custom recipe type needs declaring.** Without it the game stops loading with
+   "unregistered recipe serializer create:pressing". At registration:
+   `registrar.register_recipe_type("create:pressing")` and
+   `registrar.register_raw_recipe_serializer("create:pressing", "create:pressing")`. After that the
+   files in `data/create/recipe/pressing/` are read with `host.recipes_of_type`, each recipe's
+   `json` giving `ingredient`, `result` and `work`; `host.recipe_ingredient(text)` and
+   `host.recipe_result(text)` turn those fields into an `Ingredient` and an `ItemStack`
+   (`ingredient.test(host, stack)` matches). No extra dependency is needed to read the JSON.
+5. **Reading the container below:** `level.capability(host, &ITEMS, below, Some(Direction::Up))`
+   reaches the depot, and `extract` plus `insert` inside one `host.transaction` swaps the item for
+   the result; a result that does not fit aborts the swap.
+
 ## What is still unknown (to test before relying on it)
 
-2. **A custom recipe type with no declaration.** The notes say a type nobody uses "gives nothing"
-   and a mod's own type has only its `json`, which suggests no registration is needed. To be
-   confirmed with one `create:pressing` file that loads without an error and appears in
-   `recipes_of_type`.
-5. **Which side a press takes from.** The depot below it is read through the `ITEMS` capability with
-   `side = Up`, but the container's `faces` must then include the top.
-
-None of these is a design risk; each is an hour of trial in the game.
+Nothing from the first list is left open. For M7c, the millstone, the new questions are small: an
+output slot that hoppers can take from but not fill, and what to do with the second half of a
+stack (the press, like the depot, works one item at a time).
 
 ## Proposed design
 

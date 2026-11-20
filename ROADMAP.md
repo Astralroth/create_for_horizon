@@ -117,7 +117,7 @@ Risk: low for correctness, high for taste. Test: look at every block and item in
 including powered clutch and gearshift and a gauge's dial; switch the game to Spanish and check the
 names and the click report; listen to the wrench, the motor clicks and a working drill.
 
-## M7 · Items on machines — M7a (Depot) built and tried in the game
+## M7 · Items on machines — M7a (Depot) and M7b (Press) built and tried in the game
 
 Processing that holds items: a **Millstone** and a **Mechanical Press** on a **Depot**.
 
@@ -133,7 +133,13 @@ below fill and empty it; the item is drawn on the block and changes show at once
 note for how the client is told). Not done: the item is drawn upright rather than lying flat, and
 only the first item of a stack a hopper brings is shown as one item with its count unmarked.
 
-Risk for M7b and M7c: low to medium; the custom recipe type is the one thing left unconfirmed.
+M7b works: a press above a depot turned 1 iron ingot into 9 nuggets and 1 gold ingot into 9 gold
+nuggets, did nothing to an item no recipe takes, and its ram moves only while it works. The recipe
+type of the mod's own had to be declared at registration (see the research note). Not done: the
+press works one item at a time, so by design a stack of two in a one-slot depot cannot be pressed
+(the result has no free slot; not tried), and nothing shows the work in progress besides the ram.
+
+Risk for M7c: low; it is the same pattern with two slots and a different recipe type.
 
 ## M8 · Logistics (needs research)
 
