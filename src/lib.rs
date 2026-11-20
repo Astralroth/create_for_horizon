@@ -691,10 +691,15 @@ impl BlockPart for Machine {
             );
             return Some(InteractionResult::SuccessServer);
         }
-        // A click on the motor opens its screen, which the game does when this answers nothing;
-        // the network report is what the gauges are for.
+        // A click on the motor opens its screen with the speed slider; the network report is
+        // what the gauges are for. The game opens a mod menu by itself only for a few block
+        // classes (chests, barrels...), so the mod asks for it.
         if level.block(host, click.pos)? == keys.motor {
-            return None;
+            let entity = host.block_entity(level, click.pos)?;
+            return match player.open_menu(host, entity) {
+                Ok(true) => Some(InteractionResult::SuccessServer),
+                _ => None,
+            };
         }
         // A gauge reports the block it sits on; anything else reports itself.
         let block = level.block(host, click.pos)?;
