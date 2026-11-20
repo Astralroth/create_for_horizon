@@ -48,9 +48,105 @@ pub fn degrees(level: u32, reverse: bool, ticks: f64) -> f32 {
     (if reverse { -angle } else { angle }) as f32
 }
 
+/// How many steps a gauge's dial has above zero: the dial runs from 0 to this value.
+pub const DIAL_STEPS: u32 = 16;
+
+/// The dial step a speedometer shows for a block at displayed speed `level`: 0 when stopped,
+/// then 1 for 1 RPM up to the last step for 256 RPM, on a logarithmic scale.
+pub fn speed_dial(level: u32) -> u32 {
+    if level == 0 {
+        return 0;
+    }
+    let steps = (level as f32).log2() * (DIAL_STEPS - 1) as f32 / 8.0;
+    (1 + steps.round() as u32).min(DIAL_STEPS)
+}
+
+/// The dial step a stressometer shows: the share of the capacity that is in use. A network
+/// stopped by too much stress shows a full dial, and one with no capacity shows none.
+pub fn stress_dial(stress: f32, capacity: f32, overstressed: bool) -> u32 {
+    if overstressed {
+        return DIAL_STEPS;
+    }
+    if !capacity.is_finite() || capacity <= 0.0 || !stress.is_finite() || stress <= 0.0 {
+        return 0;
+    }
+    ((stress / capacity).clamp(0.0, 1.0) * DIAL_STEPS as f32).round() as u32
+}
+
+/// The state value that spells a dial step.
+pub fn dial_name(dial: u32) -> String {
+    dial.min(DIAL_STEPS).to_string()
+}
+
+/// The dial step a state value spells.
+pub fn dial_from_name(name: &str) -> Option<u32> {
+    name.parse().ok().filter(|dial| *dial <= DIAL_STEPS)
+}
+
+/// The angle, in degrees counterclockwise seen from the positive end of its axis, a gauge's needle
+/// is turned by at `dial`. The needle sweeps clockwise as seen from the front, from 135 degrees
+/// left of straight up at 0 to 135 degrees right of it at the last step. `facing_positive` says
+/// whether the gauge faces a positive direction, which decides which end the viewer is at.
+pub fn needle_degrees(dial: u32, facing_positive: bool) -> f32 {
+    let clockwise = -135.0 + 270.0 * dial.min(DIAL_STEPS) as f32 / DIAL_STEPS as f32;
+    if facing_positive { -clockwise } else { clockwise }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_speedometer_dial_runs_from_zero_to_full_on_a_log_scale() {
+        assert_eq!(speed_dial(0), 0);
+        assert_eq!(speed_dial(1), 1);
+        assert_eq!(speed_dial(256), DIAL_STEPS);
+        // Each doubling adds a step of nearly two.
+        let steps: Vec<u32> = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+            .into_iter()
+            .map(speed_dial)
+            .collect();
+        assert!(steps.windows(2).all(|pair| pair[1] > pair[0]), "{steps:?}");
+        assert_eq!(speed_dial(16), 9);
+    }
+
+    #[test]
+    fn a_stressometer_dial_shows_the_share_in_use() {
+        assert_eq!(stress_dial(0.0, 1000.0, false), 0);
+        assert_eq!(stress_dial(500.0, 1000.0, false), 8);
+        assert_eq!(stress_dial(1000.0, 1000.0, false), DIAL_STEPS);
+        assert_eq!(stress_dial(5000.0, 1000.0, false), DIAL_STEPS);
+        assert_eq!(stress_dial(100.0, 1000.0, true), DIAL_STEPS);
+        // No capacity or unusable numbers show an empty dial rather than failing.
+        assert_eq!(stress_dial(10.0, 0.0, false), 0);
+        assert_eq!(stress_dial(f32::NAN, 1000.0, false), 0);
+        assert_eq!(stress_dial(10.0, f32::INFINITY, false), 0);
+    }
+
+    #[test]
+    fn dial_names_round_trip_and_reject_out_of_range() {
+        for dial in 0..=DIAL_STEPS {
+            assert_eq!(dial_from_name(&dial_name(dial)), Some(dial));
+        }
+        assert_eq!(dial_from_name("17"), None);
+        assert_eq!(dial_from_name("-1"), None);
+        assert_eq!(dial_from_name("half"), None);
+        assert_eq!(dial_name(99), "16");
+    }
+
+    #[test]
+    fn the_needle_sweeps_clockwise_as_seen_from_the_front() {
+        // Seen from a negative-facing gauge the world sign is the clockwise angle itself, and
+        // from a positive-facing one it is the opposite.
+        assert_eq!(needle_degrees(0, false), -135.0);
+        assert_eq!(needle_degrees(DIAL_STEPS, false), 135.0);
+        assert_eq!(needle_degrees(DIAL_STEPS / 2, false), 0.0);
+        for dial in 0..=DIAL_STEPS {
+            assert_eq!(needle_degrees(dial, true), -needle_degrees(dial, false));
+        }
+        // The needle never goes past the ends of the dial.
+        assert_eq!(needle_degrees(500, false), 135.0);
+    }
 
     #[test]
     fn stopped_blocks_have_level_zero() {

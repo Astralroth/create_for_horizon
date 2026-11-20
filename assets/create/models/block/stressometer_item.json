@@ -1,0 +1,34 @@
+{
+  "textures": {
+    "body": "minecraft:block/copper_block",
+    "dial": "minecraft:block/target_side",
+    "needle": "minecraft:block/red_concrete",
+    "particle": "minecraft:block/copper_block"
+  },
+  "elements": [
+    {
+      "from": [2, 2, 12],
+      "to": [14, 14, 16],
+      "faces": {
+        "down": { "uv": [2, 12, 14, 16], "texture": "#body" },
+        "up": { "uv": [2, 12, 14, 16], "texture": "#body" },
+        "north": { "uv": [2, 2, 14, 14], "texture": "#dial" },
+        "south": { "uv": [2, 2, 14, 14], "texture": "#body" },
+        "west": { "uv": [12, 2, 16, 14], "texture": "#body" },
+        "east": { "uv": [12, 2, 16, 14], "texture": "#body" }
+      }
+    },
+    {
+      "from": [7.5, 8, 11],
+      "to": [8.5, 13.5, 12],
+      "faces": {
+        "down": { "uv": [7.5, 11, 8.5, 12], "texture": "#needle" },
+        "up": { "uv": [7.5, 11, 8.5, 12], "texture": "#needle" },
+        "north": { "uv": [7.5, 2.5, 8.5, 8], "texture": "#needle" },
+        "south": { "uv": [7.5, 2.5, 8.5, 8], "texture": "#needle" },
+        "west": { "uv": [11, 2.5, 12, 8], "texture": "#needle" },
+        "east": { "uv": [11, 2.5, 12, 8], "texture": "#needle" }
+      }
+    }
+  ]
+}

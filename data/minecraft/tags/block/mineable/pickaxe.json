@@ -1,3 +1,9 @@
 {
-  "values": ["create:shaft", "create:creative_motor", "create:mechanical_drill"]
+  "values": [
+    "create:shaft",
+    "create:creative_motor",
+    "create:mechanical_drill",
+    "create:speedometer",
+    "create:stressometer"
+  ]
 }

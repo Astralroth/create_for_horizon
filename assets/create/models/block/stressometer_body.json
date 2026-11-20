@@ -1,0 +1,21 @@
+{
+  "textures": {
+    "body": "minecraft:block/copper_block",
+    "dial": "minecraft:block/target_side",
+    "particle": "minecraft:block/copper_block"
+  },
+  "elements": [
+    {
+      "from": [2, 2, 12],
+      "to": [14, 14, 16],
+      "faces": {
+        "down": { "uv": [2, 12, 14, 16], "texture": "#body" },
+        "up": { "uv": [2, 12, 14, 16], "texture": "#body" },
+        "north": { "uv": [2, 2, 14, 14], "texture": "#dial" },
+        "south": { "uv": [2, 2, 14, 14], "texture": "#body" },
+        "west": { "uv": [12, 2, 16, 14], "texture": "#body" },
+        "east": { "uv": [12, 2, 16, 14], "texture": "#body" }
+      }
+    }
+  ]
+}

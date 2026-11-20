@@ -7,6 +7,8 @@
     "create:large_cogwheel",
     "create:creative_motor",
     "create:mechanical_drill",
+    "create:speedometer",
+    "create:stressometer",
     "create:wrench"
   ]
 }

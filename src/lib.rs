@@ -5,7 +5,7 @@
 //! keeps every block's speed in its state, draws the turning blocks and runs the drill.
 use mod_api::{
     self, BlockEntityEvent, BlockEntityPart, BlockEntitySubmitEvent, BlockEntityTickEvent,
-    BlockEntityTickReply, BlockEntityTicksEvent, BlockKey, BlockPart, BlockUpdateFlags,
+    BlockEntityTickReply, BlockEntityTicksEvent, BlockFace, BlockKey, BlockPart, BlockUpdateFlags,
     ClientHost, Compound, Hooks, HostBlockStates, InteractionResult, ItemKey, ItemPart,
     OnBlockPlacedByEvent, PlayerLoggedInEvent, Registrar, RegistrationContext, ServerHost, Tag,
     Text, UseItemOnEvent, UseWithoutItemEvent,
@@ -38,6 +38,8 @@ struct Keys {
     small_cogwheel: BlockKey,
     large_cogwheel: BlockKey,
     drill: BlockKey,
+    speedometer: BlockKey,
+    stressometer: BlockKey,
     wrench: ItemKey,
 }
 
@@ -86,9 +88,39 @@ impl Keys {
             "create:cogwheel" => Some(self.small_cogwheel),
             "create:large_cogwheel" => Some(self.large_cogwheel),
             "create:mechanical_drill" => Some(self.drill),
+            "create:speedometer" => Some(self.speedometer),
+            "create:stressometer" => Some(self.stressometer),
             _ => None,
         }
     }
+
+    /// Whether a block is one of the two gauges, which read the block they sit on.
+    fn is_gauge(&self, block: BlockKey) -> bool {
+        block == self.speedometer || block == self.stressometer
+    }
+}
+
+/// The direction a clicked face points toward.
+fn direction_of(face: BlockFace) -> Option<Direction> {
+    match face {
+        BlockFace::Down => Some(Direction::Down),
+        BlockFace::Up => Some(Direction::Up),
+        BlockFace::North => Some(Direction::North),
+        BlockFace::South => Some(Direction::South),
+        BlockFace::West => Some(Direction::West),
+        BlockFace::East => Some(Direction::East),
+        _ => None,
+    }
+}
+
+/// The block a gauge at `pos` sits on: behind the face it looks out of.
+fn gauge_support(
+    host: &dyn mod_api::Host,
+    level: &mod_api::LevelRef,
+    pos: Pos,
+) -> Option<Pos> {
+    let facing = Direction::from_name(&level.block_property(host, pos, "facing")?)?;
+    Some(facing.opposite().step(pos))
 }
 
 /// The axis a kinetic block turns about: its `axis`, or the axis of its `facing`.
@@ -127,6 +159,10 @@ fn refresh(host: &mut dyn ServerHost, pos: Pos) -> Option<()> {
     if (level.game_time(host)? + phase).rem_euclid(REFRESH_TICKS) != 0 {
         return Some(());
     }
+    let block = level.block(host, pos)?;
+    if keys.is_gauge(block) {
+        return refresh_gauge(host, &level, keys, pos, block == keys.speedometer);
+    }
     let network = {
         let reader: &dyn mod_api::Host = host;
         engine::solve(|at| node_at(keys, &level, reader, at), pos)?
@@ -140,6 +176,37 @@ fn refresh(host: &mut dyn ServerHost, pos: Pos) -> Option<()> {
             // Tell clients, but not the neighbours: nothing here reacts to a neighbour change.
             host.set_block_property_with(pos, key, value, BlockUpdateFlags::CLIENTS.bits());
         }
+    }
+    Some(())
+}
+
+/// Writes the dial step a gauge shows: the speed or the stress of the block it sits on.
+fn refresh_gauge(
+    host: &mut dyn ServerHost,
+    level: &mod_api::LevelRef,
+    keys: &Keys,
+    pos: Pos,
+    speedometer: bool,
+) -> Option<()> {
+    let dial = {
+        let reader: &dyn mod_api::Host = host;
+        let support = gauge_support(reader, level, pos)?;
+        match engine::solve(|at| node_at(keys, level, reader, at), support) {
+            None => 0,
+            Some(network) if speedometer => {
+                let rpm = network.member(support).map_or(0.0, |member| member.rpm);
+                visual::speed_dial(visual::level(rpm))
+            }
+            Some(network) => visual::stress_dial(
+                network.stress,
+                network.capacity,
+                network.status == Status::Overstressed,
+            ),
+        }
+    };
+    let value = visual::dial_name(dial);
+    if level.block_property(host, pos, "dial").as_deref() != Some(value.as_str()) {
+        host.set_block_property_with(pos, "dial", &value, BlockUpdateFlags::CLIENTS.bits());
     }
     Some(())
 }
@@ -303,11 +370,22 @@ impl BlockPart for Machine {
             let _ = player.tell(host, Text::literal(format!("Creative Motor: {next} RPM{direction}.")));
             return Some(InteractionResult::SuccessServer);
         }
+        // A gauge reports the block it sits on; anything else reports itself.
+        let block = level.block(host, click.pos)?;
+        let start = if keys.is_gauge(block) {
+            gauge_support(host, &level, click.pos)?
+        } else {
+            click.pos
+        };
         let network = {
             let reader: &dyn mod_api::Host = host;
-            engine::solve(|pos| node_at(keys, &level, reader, pos), click.pos)?
+            engine::solve(|pos| node_at(keys, &level, reader, pos), start)
         };
-        let _ = player.tell(host, Text::literal(describe(&network, click.pos)));
+        let text = match network {
+            Some(network) => describe(&network, start),
+            None => "Create: nothing turns behind this gauge.".to_string(),
+        };
+        let _ = player.tell(host, Text::literal(text));
         Some(InteractionResult::SuccessServer)
     }
 }
@@ -324,6 +402,18 @@ impl ItemPart for FacesWherePlacerLooks {
         };
         let facing = Direction::from_look(yaw, pitch);
         host.set_block_property(event.pos, "facing", facing.name());
+    }
+}
+
+/// Makes a gauge face away from the block it was placed against.
+struct FacesAwayFromSupport;
+
+#[mod_api::horizon_part]
+impl ItemPart for FacesAwayFromSupport {
+    fn on_block_placed_by(&self, host: &mut dyn ServerHost, event: &mut OnBlockPlacedByEvent<'_>) {
+        if let Some(facing) = direction_of(event.face) {
+            host.set_block_property(event.pos, "facing", facing.name());
+        }
     }
 }
 
@@ -374,7 +464,32 @@ impl BlockEntityPart for Kinetic {
             .unwrap_or(0);
         let reverse = property("reverse") == Some("true");
         let degrees = visual::degrees(level, reverse, event.draw.animation_time());
+        let dial = property("dial")
+            .and_then(visual::dial_from_name)
+            .unwrap_or(0);
         let draw = &mut *event.draw;
+        if keys.is_gauge(block) {
+            // The plate stays still and the needle turns about the axis the gauge faces along.
+            let Some(facing) = property("facing") else {
+                return;
+            };
+            let Some(direction) = Direction::from_name(facing) else {
+                return;
+            };
+            let positive = matches!(direction, Direction::Up | Direction::East | Direction::South);
+            draw.push();
+            draw.block(block, &[("facing", facing), ("part", "body")]);
+            draw.pop();
+            draw.push();
+            draw.rotate_about(
+                axis_vector(direction.axis()),
+                visual::needle_degrees(dial, positive),
+                [0.5; 3],
+            );
+            draw.block(block, &[("facing", facing), ("part", "needle")]);
+            draw.pop();
+            return;
+        }
         if block == keys.drill {
             // The body stays still and the head turns about the drill's axis.
             let Some(facing) = property("facing") else {
@@ -426,6 +541,8 @@ impl Hooks for CreateMod {
             small_cogwheel: registrar.block_key("create:cogwheel"),
             large_cogwheel: registrar.block_key("create:large_cogwheel"),
             drill: registrar.block_key("create:mechanical_drill"),
+            speedometer: registrar.block_key("create:speedometer"),
+            stressometer: registrar.block_key("create:stressometer"),
             wrench: registrar.item_key("create:wrench"),
         };
         for block in [
@@ -434,6 +551,8 @@ impl Hooks for CreateMod {
             keys.small_cogwheel,
             keys.large_cogwheel,
             keys.drill,
+            keys.speedometer,
+            keys.stressometer,
         ] {
             registrar.block_part(block, Machine);
         }
@@ -445,6 +564,8 @@ impl Hooks for CreateMod {
                 "cogwheel",
                 "large_cogwheel",
                 "mechanical_drill",
+                "speedometer",
+                "stressometer",
             ])
             .build();
         registrar
@@ -452,6 +573,10 @@ impl Hooks for CreateMod {
             .expect("kinetic is a native block entity type");
         let drill_item = registrar.item_key("create:mechanical_drill");
         registrar.item_part(drill_item, FacesWherePlacerLooks);
+        for name in ["create:speedometer", "create:stressometer"] {
+            let gauge_item = registrar.item_key(name);
+            registrar.item_part(gauge_item, FacesAwayFromSupport);
+        }
         let _ = KEYS.set(keys);
     }
 

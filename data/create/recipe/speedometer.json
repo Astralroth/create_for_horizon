@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": ["create:cogwheel", "minecraft:compass"],
+  "result": { "id": "create:speedometer" }
+}
