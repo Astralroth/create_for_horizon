@@ -6,6 +6,9 @@
   "block.create.mechanical_drill": "Mechanical Drill",
   "block.create.speedometer": "Speedometer",
   "block.create.stressometer": "Stressometer",
+  "block.create.gearbox": "Gearbox",
+  "block.create.clutch": "Clutch",
+  "block.create.gearshift": "Gearshift",
   "item.create.wrench": "Wrench",
   "itemGroup.create.kinetics": "Create for Horizon"
 }

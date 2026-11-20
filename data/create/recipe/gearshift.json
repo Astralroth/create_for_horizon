@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": ["create:shaft", "minecraft:redstone", "minecraft:gold_ingot"],
+  "result": { "id": "create:gearshift" }
+}

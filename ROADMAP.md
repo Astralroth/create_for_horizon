@@ -17,7 +17,13 @@ Creative Motor, shafts, small and large cogwheels, wrench, mechanical drill, kin
 
 Not yet tried in the game: the drill, and rotation drawing unless already confirmed.
 
-## M1 · Adjustable motor ◆
+## Where things stand
+
+M0 to M3 are built and pushed. They pass `cargo horizon-mod check`, the build, the registry check
+and the unit tests, but they are waiting for their first run in the game. The test list under each
+milestone says what to try.
+
+## M1 · Adjustable motor ◆ — built
 
 Change the Creative Motor's speed and direction without a screen.
 
@@ -28,28 +34,34 @@ Change the Creative Motor's speed and direction without a screen.
 Risk: low. Test: set 8, 32 and 256 RPM and watch shafts and a cog train follow; reverse the
 motor; break and replace it and check the default (16 RPM).
 
-## M2 · Gauges
+## M2 · Gauges — built
 
 Speedometer and Stressometer blocks that show the network without opening the chat.
 
-- Speedometer: a needle that points at the block's speed. Stressometer: needle at the stress
-  share of capacity. Both join a network as zero-impact blocks and also report on click.
+- They stick to a block and face out of it. They read the block behind them, so they are not part
+  of the network and use no stress. A needle shows the speed (log scale) or the share of stress in
+  use, and an empty-hand click reports the block behind.
 - Drawn through the same block entity path as the turning blocks.
 
-Risk: medium (a second custom drawing). Test: needle moves when the motor speed changes, and
-the stressometer fills as drills are added.
+Risk: medium (a second custom drawing). Test: place a gauge on a shaft and on a cog; the needle
+moves when the motor speed changes, and the stressometer fills as drills are added and goes full
+when the network stops.
 
-## M3 · Transmissions ◆
+## M3 · Transmissions ◆ — built
 
 Ways to turn, split and cut a network.
 
-- **Gearbox**: a block with shaft ends on four sides that links networks at right angles, with
-  the reversals a real gearbox gives. This extends the solver beyond straight shafts.
-- **Clutch** and **Gearshift**: cut or reverse a network with a redstone signal.
-- Solver tests for every new link rule before any block uses it.
+- **Gearbox**: shaft ends on the four faces across its axis, joining networks at right angles with
+  bevel-gear polarity. A shaft straight through it comes out reversed.
+- **Clutch** and **Gearshift**: a redstone signal cuts the line (clutch) or reverses its far side
+  (gearshift). The signal is read every two ticks.
+- The solver gained ports per block face; a property test checks that every link has a reciprocal
+  from the other side.
 
-Risk: medium to high. The solver part is fully testable; reading a redstone signal and reacting to
-it on time is not. Test: turn a corner with a gearbox, then cut and reverse a line with a lever.
+Risk: medium to high. The solver part is fully tested; reading a redstone signal and reacting to it
+is not. Test: turn a corner with a gearbox and check the direction after it; feed a line through a
+clutch with a lever beside it and watch it stop and start; reverse a line with a gearshift; put two
+reversed gearshifts in a row and confirm they cancel.
 
 ## M4 · More sources
 

@@ -4,6 +4,9 @@
     "create:creative_motor",
     "create:mechanical_drill",
     "create:speedometer",
-    "create:stressometer"
+    "create:stressometer",
+    "create:gearbox",
+    "create:clutch",
+    "create:gearshift"
   ]
 }

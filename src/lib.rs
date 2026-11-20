@@ -22,6 +22,8 @@ use engine::{Axis, Kind, Network, Pos, Status};
 
 /// How often, in game ticks, a block looks at its network again.
 const REFRESH_TICKS: i64 = 10;
+/// How often, in game ticks, a clutch or gearshift looks at its redstone signal.
+const SIGNAL_TICKS: i64 = 2;
 /// Stress units the Creative Motor carries for every RPM it turns at (16 RPM carries 16384).
 const MOTOR_CAPACITY: f32 = 1024.0;
 /// Stress units the drill uses for every RPM it turns at.
@@ -40,6 +42,9 @@ struct Keys {
     drill: BlockKey,
     speedometer: BlockKey,
     stressometer: BlockKey,
+    gearbox: BlockKey,
+    clutch: BlockKey,
+    gearshift: BlockKey,
     wrench: ItemKey,
 }
 
@@ -56,9 +61,24 @@ fn axis_from(value: &str) -> Option<Axis> {
 
 impl Keys {
     /// What a block of this kind does in a network, turning about `axis`. `motor_rpm` is the
-    /// signed speed a Creative Motor is set to; other blocks ignore it.
-    fn kind_of(&self, block: BlockKey, axis: Axis, motor_rpm: f32) -> Option<Kind> {
-        if block == self.shaft {
+    /// signed speed a Creative Motor is set to, and `powered` whether a clutch or gearshift has
+    /// a redstone signal; other blocks ignore them.
+    fn kind_of(&self, block: BlockKey, axis: Axis, motor_rpm: f32, powered: bool) -> Option<Kind> {
+        if block == self.gearbox {
+            Some(Kind::Gearbox { axis })
+        } else if block == self.clutch {
+            // A powered clutch lets go.
+            Some(Kind::Clutch {
+                axis,
+                engaged: !powered,
+            })
+        } else if block == self.gearshift {
+            // A powered gearshift reverses.
+            Some(Kind::Gearshift {
+                axis,
+                reversed: powered,
+            })
+        } else if block == self.shaft {
             Some(Kind::Shaft { axis })
         } else if block == self.motor {
             Some(Kind::Generator {
@@ -90,6 +110,8 @@ impl Keys {
             "create:mechanical_drill" => Some(self.drill),
             "create:speedometer" => Some(self.speedometer),
             "create:stressometer" => Some(self.stressometer),
+            "create:clutch" => Some(self.clutch),
+            "create:gearshift" => Some(self.gearshift),
             _ => None,
         }
     }
@@ -146,7 +168,37 @@ fn node_at(
     } else {
         0.0
     };
-    keys.kind_of(block, axis, motor_rpm)
+    let powered = (block == keys.clutch || block == keys.gearshift)
+        && level.block_property(host, pos, "powered").as_deref() == Some("true");
+    keys.kind_of(block, axis, motor_rpm, powered)
+}
+
+/// The tick offset that spreads the blocks' periodic work out, so they do not all look at once.
+fn phase(pos: Pos) -> i64 {
+    i64::from(pos[0]) * 31 + i64::from(pos[1]) * 17 + i64::from(pos[2]) * 13
+}
+
+/// Copies the redstone signal a clutch or gearshift gets into its `powered` state, which the
+/// network solver reads and the client draws.
+fn refresh_signal(host: &mut dyn ServerHost, pos: Pos) -> Option<()> {
+    let keys = KEYS.get()?;
+    let level = host.level(&host.dimension())?;
+    if (level.game_time(host)? + phase(pos)).rem_euclid(SIGNAL_TICKS) != 0 {
+        return Some(());
+    }
+    let block = level.block(host, pos)?;
+    if block != keys.clutch && block != keys.gearshift {
+        return Some(());
+    }
+    let value = if level.has_neighbor_signal(host, pos) {
+        "true"
+    } else {
+        "false"
+    };
+    if level.block_property(host, pos, "powered").as_deref() != Some(value) {
+        host.set_block_property_with(pos, "powered", value, BlockUpdateFlags::CLIENTS.bits());
+    }
+    Some(())
 }
 
 /// Looks at the network the block at `pos` belongs to and, when it is time, writes how fast the
@@ -155,8 +207,7 @@ fn refresh(host: &mut dyn ServerHost, pos: Pos) -> Option<()> {
     let keys = KEYS.get()?;
     let level = host.level(&host.dimension())?;
     // Spread the work: each block looks every REFRESH_TICKS, at an offset of its own.
-    let phase = i64::from(pos[0]) * 31 + i64::from(pos[1]) * 17 + i64::from(pos[2]) * 13;
-    if (level.game_time(host)? + phase).rem_euclid(REFRESH_TICKS) != 0 {
+    if (level.game_time(host)? + phase(pos)).rem_euclid(REFRESH_TICKS) != 0 {
         return Some(());
     }
     let block = level.block(host, pos)?;
@@ -448,6 +499,7 @@ impl BlockEntityPart for Kinetic {
         // Only the drill edits saved data, and then it says so, so the chunk is not marked
         // dirty by a block that is only turning.
         *event.reply = BlockEntityTickReply::Unchanged;
+        let _ = refresh_signal(host, event.pos);
         let _ = refresh(host, event.pos);
         let _ = drill(host, event);
     }
@@ -513,9 +565,14 @@ impl BlockEntityPart for Kinetic {
         let Some(axis) = axis_from(axis_name) else {
             return;
         };
+        // A clutch or gearshift also has a model for when it is powered.
+        let mut properties = vec![("axis", axis_name)];
+        if let Some(powered) = property("powered") {
+            properties.push(("powered", powered));
+        }
         draw.push();
         draw.rotate_about(axis_vector(axis), degrees, [0.5; 3]);
-        draw.block(block, &[("axis", axis_name)]);
+        draw.block(block, &properties);
         draw.pop();
     }
 }
@@ -543,6 +600,9 @@ impl Hooks for CreateMod {
             drill: registrar.block_key("create:mechanical_drill"),
             speedometer: registrar.block_key("create:speedometer"),
             stressometer: registrar.block_key("create:stressometer"),
+            gearbox: registrar.block_key("create:gearbox"),
+            clutch: registrar.block_key("create:clutch"),
+            gearshift: registrar.block_key("create:gearshift"),
             wrench: registrar.item_key("create:wrench"),
         };
         for block in [
@@ -553,6 +613,9 @@ impl Hooks for CreateMod {
             keys.drill,
             keys.speedometer,
             keys.stressometer,
+            keys.gearbox,
+            keys.clutch,
+            keys.gearshift,
         ] {
             registrar.block_part(block, Machine);
         }
@@ -566,6 +629,8 @@ impl Hooks for CreateMod {
                 "mechanical_drill",
                 "speedometer",
                 "stressometer",
+                "clutch",
+                "gearshift",
             ])
             .build();
         registrar

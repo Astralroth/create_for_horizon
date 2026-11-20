@@ -1,0 +1,33 @@
+{
+  "textures": {
+    "core": "minecraft:block/copper_block",
+    "axle": "minecraft:block/polished_andesite",
+    "particle": "minecraft:block/copper_block"
+  },
+  "elements": [
+    {
+      "from": [6, 0, 6],
+      "to": [10, 16, 10],
+      "faces": {
+        "down": { "uv": [6, 6, 10, 10], "texture": "#axle" },
+        "up": { "uv": [6, 6, 10, 10], "texture": "#axle" },
+        "north": { "uv": [6, 0, 10, 16], "texture": "#axle" },
+        "south": { "uv": [6, 0, 10, 16], "texture": "#axle" },
+        "west": { "uv": [6, 0, 10, 16], "texture": "#axle" },
+        "east": { "uv": [6, 0, 10, 16], "texture": "#axle" }
+      }
+    },
+    {
+      "from": [4, 4, 4],
+      "to": [12, 10, 12],
+      "faces": {
+        "down": { "uv": [4, 4, 12, 12], "texture": "#core" },
+        "up": { "uv": [4, 4, 12, 12], "texture": "#core" },
+        "north": { "uv": [4, 6, 12, 12], "texture": "#core" },
+        "south": { "uv": [4, 6, 12, 12], "texture": "#core" },
+        "west": { "uv": [4, 6, 12, 12], "texture": "#core" },
+        "east": { "uv": [4, 6, 12, 12], "texture": "#core" }
+      }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": ["create:cogwheel", "create:cogwheel", "minecraft:iron_ingot"],
+  "result": { "id": "create:gearbox" }
+}

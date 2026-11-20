@@ -98,16 +98,71 @@ pub enum Kind {
     },
     /// A machine that uses `impact` stress units for every RPM it turns at.
     Consumer { axis: Axis, impact: f32 },
+    /// A gearbox: shaft ends on the four faces across `axis`. It turns shafts at right angles
+    /// to each other, as bevel gears do, and reverses a shaft that runs straight through it.
+    /// Its own speed is the one every port would turn at about its own outward direction,
+    /// with the second of the two port axes turning the opposite way round.
+    Gearbox { axis: Axis },
+    /// A shaft that a redstone signal can cut. Engaged it is a shaft; disengaged it has no shaft
+    /// ends, so the two sides it joined become separate networks.
+    Clutch { axis: Axis, engaged: bool },
+    /// A shaft that a redstone signal can reverse. Its own speed is the one at its negative end;
+    /// when `reversed` the positive end turns the other way.
+    Gearshift { axis: Axis, reversed: bool },
 }
 
+/// The six unit steps from a block to its neighbours.
+const STEPS: [[i32; 3]; 6] = [
+    [-1, 0, 0],
+    [1, 0, 0],
+    [0, -1, 0],
+    [0, 1, 0],
+    [0, 0, -1],
+    [0, 0, 1],
+];
+
 impl Kind {
-    /// The axis the block turns about.
+    /// The axis the block turns about, or for a gearbox the axis its ports lie across.
     pub fn axis(self) -> Axis {
         match self {
             Kind::Shaft { axis }
             | Kind::Cog { axis, .. }
             | Kind::Generator { axis, .. }
-            | Kind::Consumer { axis, .. } => axis,
+            | Kind::Consumer { axis, .. }
+            | Kind::Gearbox { axis }
+            | Kind::Clutch { axis, .. }
+            | Kind::Gearshift { axis, .. } => axis,
+        }
+    }
+
+    /// The speed a shaft ending at the port facing `step` turns at, as a factor of this block's
+    /// own speed and in the signed convention of a shaft on that step's axis (positive is
+    /// counterclockwise seen from the positive end of the axis). `None` when no shaft end faces
+    /// that way, which also leaves a disengaged clutch with no ports at all.
+    pub fn port_factor(self, step: [i32; 3]) -> Option<f32> {
+        if !STEPS.contains(&step) {
+            return None;
+        }
+        let face = Axis::of_face(step)?;
+        let sign = if step[face.index()] > 0 { 1.0 } else { -1.0 };
+        match self {
+            Kind::Shaft { axis }
+            | Kind::Cog { axis, .. }
+            | Kind::Generator { axis, .. }
+            | Kind::Consumer { axis, .. } => (face == axis).then_some(1.0),
+            Kind::Clutch { axis, engaged } => (engaged && face == axis).then_some(1.0),
+            Kind::Gearshift { axis, reversed } => {
+                (face == axis).then_some(if reversed && sign > 0.0 { -1.0 } else { 1.0 })
+            }
+            Kind::Gearbox { axis } => {
+                if face == axis {
+                    return None;
+                }
+                // Of the two port axes the first turns with the sign of its outward direction
+                // and the second the opposite way, which is what bevel gears do at right angles.
+                let first = Axis::ALL.into_iter().find(|other| *other != axis)?;
+                Some(if face == first { sign } else { -sign })
+            }
         }
     }
 
@@ -125,24 +180,29 @@ impl Kind {
 /// reciprocal.
 pub fn link(a: Kind, from: Pos, b: Kind, to: Pos) -> Option<f32> {
     let delta = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+    // Shaft link: neighbours with a shaft end facing each other. Both ends sit on one shaft
+    // line, so they turn alike about it: speed(a) * port(a) = speed(b) * port(b).
+    if STEPS.contains(&delta) {
+        let back = [-delta[0], -delta[1], -delta[2]];
+        if let (Some(from_port), Some(to_port)) = (a.port_factor(delta), b.port_factor(back)) {
+            return Some(from_port * to_port);
+        }
+        // Without shaft ends facing each other the cells can still touch as meshing cogs.
+    }
+    // Mesh: both are cogs on the same axis, in the same plane.
     let axis = a.axis();
     if axis != b.axis() {
         return None;
     }
     let along = delta[axis.index()];
+    if along != 0 {
+        return None;
+    }
     let across: Vec<i32> = Axis::ALL
         .into_iter()
         .filter(|other| *other != axis)
         .map(|other| delta[other.index()])
         .collect();
-    // Shaft link: one step along the shared axis.
-    if along.abs() == 1 && across.iter().all(|step| *step == 0) {
-        return Some(1.0);
-    }
-    // Mesh: both are cogs in the same plane.
-    if along != 0 {
-        return None;
-    }
     let (Kind::Cog { large: a_large, .. }, Kind::Cog { large: b_large, .. }) = (a, b) else {
         return None;
     };
@@ -157,16 +217,15 @@ pub fn link(a: Kind, from: Pos, b: Kind, to: Pos) -> Option<f32> {
     }
 }
 
-/// Where a network's blocks can lie relative to a block: its two axis ends and, for a cog, the
-/// eight cells around it in the plane across its axis.
+/// Where a network's blocks can lie relative to a block: the cell in front of each of its shaft
+/// ends and, for a cog, the eight cells around it in the plane across its axis.
 fn candidates(kind: Kind, pos: Pos) -> Vec<Pos> {
     let axis = kind.axis();
-    let mut cells = Vec::new();
-    for step in [-1, 1] {
-        let mut next = pos;
-        next[axis.index()] += step;
-        cells.push(next);
-    }
+    let mut cells: Vec<Pos> = STEPS
+        .into_iter()
+        .filter(|step| kind.port_factor(*step).is_some())
+        .map(|step| [pos[0] + step[0], pos[1] + step[1], pos[2] + step[2]])
+        .collect();
     if matches!(kind, Kind::Cog { .. }) {
         let planar: Vec<Axis> = Axis::ALL.into_iter().filter(|a| *a != axis).collect();
         for first in -1..=1 {
@@ -721,6 +780,245 @@ mod tests {
         assert_eq!(Axis::X.name(), "x");
         assert_eq!(Axis::Y.name(), "y");
         assert_eq!(Axis::Z.name(), "z");
+    }
+
+    fn gearbox(axis: Axis) -> Kind {
+        Kind::Gearbox { axis }
+    }
+    fn clutch(axis: Axis, engaged: bool) -> Kind {
+        Kind::Clutch { axis, engaged }
+    }
+    fn gearshift(axis: Axis, reversed: bool) -> Kind {
+        Kind::Gearshift { axis, reversed }
+    }
+
+    #[test]
+    fn the_ports_of_shafts_and_cogs_lie_on_their_axis() {
+        for kind in [shaft(Axis::X), cog(Axis::X, true), motor(Axis::X, 1.0)] {
+            assert_eq!(kind.port_factor([1, 0, 0]), Some(1.0));
+            assert_eq!(kind.port_factor([-1, 0, 0]), Some(1.0));
+            assert_eq!(kind.port_factor([0, 1, 0]), None);
+            assert_eq!(kind.port_factor([0, 0, -1]), None);
+        }
+        // Anything that is not one unit step has no port.
+        assert_eq!(shaft(Axis::X).port_factor([2, 0, 0]), None);
+        assert_eq!(shaft(Axis::X).port_factor([1, 1, 0]), None);
+        assert_eq!(shaft(Axis::X).port_factor([0, 0, 0]), None);
+    }
+
+    #[test]
+    fn a_gearbox_has_ports_across_its_axis_with_opposite_polarity_per_axis() {
+        // Axis Y: ports on X (first, turns with the outward sign) and Z (the opposite way).
+        let g = gearbox(Axis::Y);
+        assert_eq!(g.port_factor([1, 0, 0]), Some(1.0));
+        assert_eq!(g.port_factor([-1, 0, 0]), Some(-1.0));
+        assert_eq!(g.port_factor([0, 0, 1]), Some(-1.0));
+        assert_eq!(g.port_factor([0, 0, -1]), Some(1.0));
+        assert_eq!(g.port_factor([0, 1, 0]), None);
+        assert_eq!(g.port_factor([0, -1, 0]), None);
+        // Axis X: ports on Y (first) and Z.
+        let g = gearbox(Axis::X);
+        assert_eq!(g.port_factor([0, 1, 0]), Some(1.0));
+        assert_eq!(g.port_factor([0, 0, 1]), Some(-1.0));
+        assert_eq!(g.port_factor([1, 0, 0]), None);
+        // Axis Z: ports on X (first) and Y.
+        let g = gearbox(Axis::Z);
+        assert_eq!(g.port_factor([-1, 0, 0]), Some(-1.0));
+        assert_eq!(g.port_factor([0, 1, 0]), Some(-1.0));
+        assert_eq!(g.port_factor([0, 0, 1]), None);
+    }
+
+    #[test]
+    fn a_shaft_straight_through_a_gearbox_comes_out_reversed() {
+        let nodes = [
+            ([0, 0, 0], motor(Axis::X, 16.0)),
+            ([1, 0, 0], shaft(Axis::X)),
+            ([2, 0, 0], gearbox(Axis::Y)),
+            ([3, 0, 0], shaft(Axis::X)),
+        ];
+        let network = solve(world(&nodes), [3, 0, 0]).unwrap();
+        assert_eq!(network.status, Status::Running);
+        assert_eq!(rpm(&network, [1, 0, 0]), 16.0);
+        assert_eq!(rpm(&network, [3, 0, 0]), -16.0);
+    }
+
+    #[test]
+    fn a_gearbox_turns_a_corner_the_way_bevel_gears_do() {
+        // A shaft along X drives one along Z. Bevel gears at right angles meet with their
+        // outward speeds opposed, which in the world frame is +16 about X and +16 about Z here.
+        let nodes = [
+            ([0, 0, 0], motor(Axis::X, 16.0)),
+            ([1, 0, 0], gearbox(Axis::Y)),
+            ([1, 0, 1], shaft(Axis::Z)),
+            ([1, 0, -1], shaft(Axis::Z)),
+        ];
+        let network = solve(world(&nodes), [1, 0, 1]).unwrap();
+        assert_eq!(network.members.len(), 4);
+        assert_eq!(rpm(&network, [1, 0, 1]), 16.0);
+        // The shaft on the other side of the same axis turns the opposite way round.
+        assert_eq!(rpm(&network, [1, 0, -1]), -16.0);
+    }
+
+    #[test]
+    fn gearboxes_side_by_side_pass_the_speed_on() {
+        let nodes = [
+            ([-1, 0, 0], motor(Axis::X, 16.0)),
+            ([0, 0, 0], gearbox(Axis::Y)),
+            ([1, 0, 0], gearbox(Axis::Y)),
+            ([2, 0, 0], shaft(Axis::X)),
+        ];
+        let network = solve(world(&nodes), [2, 0, 0]).unwrap();
+        assert_eq!(network.members.len(), 4);
+        // Each gearbox reverses once, so the shaft ends up turning as the motor does.
+        assert_eq!(rpm(&network, [2, 0, 0]), 16.0);
+    }
+
+    #[test]
+    fn a_gearbox_has_no_port_on_its_own_axis() {
+        let nodes = [([0, 0, 0], gearbox(Axis::Y)), ([0, 1, 0], shaft(Axis::Y))];
+        assert_eq!(solve(world(&nodes), [0, 1, 0]).unwrap().members.len(), 1);
+        let nodes = [([0, 0, 0], gearbox(Axis::Y)), ([0, 0, 0], gearbox(Axis::Y))];
+        assert_eq!(solve(world(&nodes), [0, 0, 0]).unwrap().members.len(), 1);
+        // Two gearboxes turned differently do not meet through a face one of them lacks.
+        let nodes = [([0, 0, 0], gearbox(Axis::Y)), ([1, 0, 0], gearbox(Axis::X))];
+        assert_eq!(solve(world(&nodes), [0, 0, 0]).unwrap().members.len(), 1);
+    }
+
+    #[test]
+    fn an_engaged_clutch_is_a_shaft() {
+        let nodes = [
+            ([0, 0, 0], motor(Axis::X, 16.0)),
+            ([1, 0, 0], clutch(Axis::X, true)),
+            ([2, 0, 0], shaft(Axis::X)),
+        ];
+        let network = solve(world(&nodes), [2, 0, 0]).unwrap();
+        assert_eq!(network.members.len(), 3);
+        assert_eq!(rpm(&network, [2, 0, 0]), 16.0);
+    }
+
+    #[test]
+    fn a_disengaged_clutch_cuts_the_network_in_two() {
+        let nodes = [
+            ([0, 0, 0], motor(Axis::X, 16.0)),
+            ([1, 0, 0], clutch(Axis::X, false)),
+            ([2, 0, 0], shaft(Axis::X)),
+        ];
+        let driven = solve(world(&nodes), [2, 0, 0]).unwrap();
+        assert_eq!(driven.members.len(), 1);
+        assert_eq!(driven.status, Status::Idle);
+        assert_eq!(rpm(&driven, [2, 0, 0]), 0.0);
+        let source_side = solve(world(&nodes), [0, 0, 0]).unwrap();
+        assert_eq!(source_side.members.len(), 1);
+        // The clutch itself belongs to neither side.
+        let alone = solve(world(&nodes), [1, 0, 0]).unwrap();
+        assert_eq!(alone.members.len(), 1);
+        assert_eq!(alone.status, Status::Idle);
+    }
+
+    #[test]
+    fn a_gearshift_passes_the_speed_on_or_reverses_the_far_side() {
+        let build = |reversed: bool| {
+            [
+                ([0, 0, 0], shaft(Axis::X)),
+                ([1, 0, 0], gearshift(Axis::X, reversed)),
+                ([2, 0, 0], motor(Axis::X, 16.0)),
+            ]
+        };
+        let plain = build(false);
+        let network = solve(world(&plain), [0, 0, 0]).unwrap();
+        assert_eq!(rpm(&network, [0, 0, 0]), 16.0);
+        // Reversed, the motor sits on the positive end and the shaft on the negative end.
+        let reversed = build(true);
+        let network = solve(world(&reversed), [0, 0, 0]).unwrap();
+        assert_eq!(rpm(&network, [0, 0, 0]), -16.0);
+        assert_eq!(network.status, Status::Running);
+    }
+
+    #[test]
+    fn a_reversed_gearshift_reverses_from_either_side() {
+        // The motor on the negative end now: the positive-end shaft comes out reversed.
+        let nodes = [
+            ([0, 0, 0], motor(Axis::X, 16.0)),
+            ([1, 0, 0], gearshift(Axis::X, true)),
+            ([2, 0, 0], shaft(Axis::X)),
+        ];
+        let network = solve(world(&nodes), [2, 0, 0]).unwrap();
+        assert_eq!(rpm(&network, [0, 0, 0]), 16.0);
+        assert_eq!(rpm(&network, [2, 0, 0]), -16.0);
+    }
+
+    #[test]
+    fn two_reversed_gearshifts_cancel() {
+        let nodes = [
+            ([0, 0, 0], motor(Axis::X, 16.0)),
+            ([1, 0, 0], gearshift(Axis::X, true)),
+            ([2, 0, 0], gearshift(Axis::X, true)),
+            ([3, 0, 0], shaft(Axis::X)),
+        ];
+        let network = solve(world(&nodes), [3, 0, 0]).unwrap();
+        assert_eq!(rpm(&network, [3, 0, 0]), 16.0);
+    }
+
+    #[test]
+    fn a_gearshift_carries_stress_like_a_shaft() {
+        let nodes = [
+            ([0, 0, 0], motor(Axis::X, 10.0)),
+            ([1, 0, 0], gearshift(Axis::X, true)),
+            ([2, 0, 0], consumer(Axis::X, 50.0)),
+        ];
+        let network = solve(world(&nodes), [2, 0, 0]).unwrap();
+        // The machine runs the other way round but at the same speed, so the same stress.
+        assert_eq!(rpm(&network, [2, 0, 0]), -10.0);
+        assert_eq!(network.stress, 500.0);
+    }
+
+    #[test]
+    fn every_link_has_a_reciprocal_from_the_other_side() {
+        let kinds = [
+            shaft(Axis::X),
+            shaft(Axis::Y),
+            shaft(Axis::Z),
+            cog(Axis::Y, false),
+            cog(Axis::Y, true),
+            cog(Axis::Z, false),
+            motor(Axis::X, 8.0),
+            consumer(Axis::Z, 2.0),
+            gearbox(Axis::X),
+            gearbox(Axis::Y),
+            gearbox(Axis::Z),
+            clutch(Axis::X, true),
+            clutch(Axis::Y, false),
+            gearshift(Axis::X, false),
+            gearshift(Axis::Y, true),
+        ];
+        let mut offsets = Vec::new();
+        for x in -1..=1 {
+            for y in -1..=1 {
+                for z in -1..=1 {
+                    if [x, y, z] != [0, 0, 0] {
+                        offsets.push([x, y, z]);
+                    }
+                }
+            }
+        }
+        let mut linked = 0;
+        for a in kinds {
+            for b in kinds {
+                for offset in &offsets {
+                    let forward = link(a, [0, 0, 0], b, *offset);
+                    let back = link(b, *offset, a, [0, 0, 0]);
+                    match (forward, back) {
+                        (None, None) => {}
+                        (Some(f), Some(r)) => {
+                            linked += 1;
+                            assert!((f * r - 1.0).abs() < 1e-6, "{a:?} {b:?} {offset:?}: {f} {r}");
+                        }
+                        other => panic!("one-sided link {a:?} {b:?} {offset:?}: {other:?}"),
+                    }
+                }
+            }
+        }
+        assert!(linked > 100, "only {linked} links were exercised");
     }
 
     #[test]
