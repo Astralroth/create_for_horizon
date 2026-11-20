@@ -1111,13 +1111,9 @@ impl Hooks for CreateMod {
         let _ = KEYS.set(keys);
     }
 
-    /// The wheel over the Creative Motor's screen steps its speed.
-    fn mouse_scrolling(
-        &self,
-        host: &mut dyn ClientHost,
-        event: &mut mod_api::MouseScrollingEvent,
-    ) -> mod_api::Flow {
-        motor_screen::scrolled(host, event)
+    /// The left and right arrow keys step the Creative Motor's speed while its screen is open.
+    fn input_key(&self, host: &mut dyn ClientHost, event: &mut mod_api::InputKeyEvent<'_>) {
+        motor_screen::key(host, event);
     }
 
     /// A player joined: say that the mod is installed.

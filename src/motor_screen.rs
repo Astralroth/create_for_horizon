@@ -90,6 +90,7 @@ pub fn draw(event: &mut ScreenDrawEvent<'_>) {
     if event.block != BLOCK {
         return;
     }
+    beat();
     let origin = event.origin;
     let signed = event.data.first().copied().unwrap_or(motor::DEFAULT_RPM as i32);
     let knob_at = motor::slider_index(signed);
@@ -166,38 +167,59 @@ pub fn tooltip(block: &str, at: [f32; 2], lines: &mut Vec<String>) {
     }
 }
 
-/// The menu button a turn of the wheel stands for: one step forwards when it scrolls up and one
-/// step backwards when it scrolls down; `None` when it did not turn.
-pub fn wheel_button(vertical: f64) -> Option<i32> {
-    if vertical > 0.0 {
-        Some(BUTTON_STEP_FORWARD)
-    } else if vertical < 0.0 {
-        Some(BUTTON_STEP_BACK)
-    } else {
-        None
+/// The menu button an arrow key stands for: left steps backwards, right steps forwards.
+pub fn key_button(key: &str) -> Option<i32> {
+    match key {
+        "key.keyboard.left" => Some(BUTTON_STEP_BACK),
+        "key.keyboard.right" => Some(BUTTON_STEP_FORWARD),
+        _ => None,
     }
 }
 
-/// The wheel over the motor's screen steps the speed. Anywhere else it is left alone.
-pub fn scrolled(
-    host: &mut dyn mod_api::ClientHost,
-    event: &mod_api::MouseScrollingEvent,
-) -> mod_api::Flow {
-    let Some(button) = wheel_button(event.scroll[1]) else {
-        return mod_api::Flow::Continue;
-    };
-    let Some(player) = host.local_player() else {
-        return mod_api::Flow::Continue;
-    };
-    let Some(menu) = player.container_menu(&*host) else {
-        return mod_api::Flow::Continue;
-    };
-    if menu.kind(&*host) != Some(Some(MENU.to_string())) {
-        return mod_api::Flow::Continue;
+/// How long after the last frame of the motor's screen it still counts as open, in milliseconds.
+const OPEN_FOR_MS: u64 = 250;
+
+/// Whether a screen drawn at `last_drawn` is still open at `now` (both in milliseconds). Nothing
+/// tells a key hook which screen is open, so the screen's own drawing, once a frame, says so.
+pub fn is_open(last_drawn: Option<u64>, now: u64) -> bool {
+    last_drawn.is_some_and(|last| now >= last && now - last <= OPEN_FOR_MS)
+}
+
+/// Milliseconds since the first call, the clock the screen's heartbeat uses.
+fn now_ms() -> u64 {
+    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    START.get_or_init(std::time::Instant::now).elapsed().as_millis() as u64
+}
+
+/// The time the motor's screen was last drawn, plus one so zero means never.
+static LAST_DRAWN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Notes that the motor's screen was drawn just now.
+fn beat() {
+    LAST_DRAWN.store(now_ms() + 1, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// An arrow key while the motor's screen is open steps the speed.
+pub fn key(host: &mut dyn mod_api::ClientHost, event: &mod_api::InputKeyEvent<'_>) {
+    if !matches!(
+        event.action,
+        mod_api::KeyAction::Press | mod_api::KeyAction::Repeat
+    ) {
+        return;
     }
-    menu.click_button(host, button);
-    // The press was the wheel's use: the screen does not scroll anything else.
-    mod_api::Flow::Cancel
+    let Some(button) = key_button(event.key) else {
+        return;
+    };
+    let last = LAST_DRAWN.load(std::sync::atomic::Ordering::Relaxed);
+    if !is_open(last.checked_sub(1), now_ms()) {
+        return;
+    }
+    let Some(player) = host.local_player() else {
+        return;
+    };
+    if let Some(menu) = player.container_menu(&*host) {
+        menu.click_button(host, button);
+    }
 }
 
 /// A press on the screen: only the left button, only the motor's own screen.
@@ -283,11 +305,22 @@ mod tests {
     }
 
     #[test]
-    fn the_wheel_steps_forwards_when_it_scrolls_up_and_backwards_down() {
-        assert_eq!(wheel_button(1.0), Some(BUTTON_STEP_FORWARD));
-        assert_eq!(wheel_button(0.25), Some(BUTTON_STEP_FORWARD));
-        assert_eq!(wheel_button(-1.0), Some(BUTTON_STEP_BACK));
-        assert_eq!(wheel_button(0.0), None);
+    fn the_arrow_keys_step_the_speed_and_other_keys_do_nothing() {
+        assert_eq!(key_button("key.keyboard.left"), Some(BUTTON_STEP_BACK));
+        assert_eq!(key_button("key.keyboard.right"), Some(BUTTON_STEP_FORWARD));
+        assert_eq!(key_button("key.keyboard.a"), None);
+        assert_eq!(key_button("key.keyboard.up"), None);
+        assert_eq!(key_button(""), None);
+    }
+
+    #[test]
+    fn a_screen_counts_as_open_for_a_moment_after_its_last_frame() {
+        assert!(is_open(Some(1000), 1000));
+        assert!(is_open(Some(1000), 1000 + OPEN_FOR_MS));
+        assert!(!is_open(Some(1000), 1000 + OPEN_FOR_MS + 1));
+        // Never drawn, or a clock that went backwards: closed.
+        assert!(!is_open(None, 5000));
+        assert!(!is_open(Some(2000), 1000));
     }
 
     #[test]
