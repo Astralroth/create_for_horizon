@@ -22,7 +22,9 @@ Not yet tried in the game: the drill, and rotation drawing unless already confir
 M0 to M3 are built and were tried in the game ("works well"). M6 (look and sound) was built next, at
 the user's request, ahead of M4 and M5, and its look and the M3 blocks were tried again through
 Agent Control (motor, shafts, wrench, cogs, drill, gauges, clutch, gearshift, gearbox); the
-sneak-click on the motor, Spanish and the sounds were not. M4 and M5 were built last and tried the
+sneak-click on the motor was not (Agent Control cannot make the player sneak), and of the sounds
+only the wrench's and the depot's were heard. Spanish was tried later and works: the network report
+and the block names come out translated. M4 and M5 were built last and tried the
 same way and work: the hand crank (after a fix: its block definition had inherited an `axis` from
 its template, so it never joined a shaft line), the water wheel, the saw, the harvester and the
 plough. The test list under each milestone says what to try.
@@ -130,8 +132,8 @@ Processing that holds items: a **Millstone** and a **Mechanical Press** on a **D
 
 M7a works: right click puts one item on the depot and an empty hand takes it back; hoppers above and
 below fill and empty it; the item is drawn on the block and changes show at once (see the research
-note for how the client is told). Not done: the item is drawn upright rather than lying flat, and
-only the first item of a stack a hopper brings is shown as one item with its count unmarked.
+note for how the client is told). The item lies flat on the depot, and a stack is drawn as a pile of
+up to three copies (one item, two to sixteen, more); the exact count is not written.
 
 M7b works: a press above a depot turned 1 iron ingot into 9 nuggets and 1 gold ingot into 9 gold
 nuggets, did nothing to an item no recipe takes, and its ram moves only while it works. The recipe

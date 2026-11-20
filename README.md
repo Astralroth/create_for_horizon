@@ -10,8 +10,10 @@ by the gameplay of the Create mod. It contains no code or assets from Create or 
 **Status: M0 to M6 of the [roadmap](ROADMAP.md).** Everything passes Horizon's own package
 checks and the unit tests. M0 to M5 were tried in the game (the M4 and M5 blocks through Agent
 Control: crank, water wheel with the Wrench reversing it, saw, harvester and plough), and M6's look
-was seen there. Not tried yet: sneak-clicking the motor, Spanish and the sounds. See
-[Limitations](#limitations).
+was seen there. M7 (the depot, the press and the millstone) was tried the same way, and the Spanish
+translation was seen working. The wrench and the depot sounds were heard by the game; the others
+(motor clicks, clutch and gearshift, drill, press, millstone) and sneak-clicking the motor have not
+been tried. See [Limitations](#limitations).
 
 ## Install
 
