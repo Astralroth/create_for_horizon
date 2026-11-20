@@ -109,6 +109,16 @@ pub enum Kind {
     /// A shaft that a redstone signal can reverse. Its own speed is the one at its negative end;
     /// when `reversed` the positive end turns the other way.
     Gearshift { axis: Axis, reversed: bool },
+    /// A source with a shaft end on one side only: `side` is `1` for the positive end of `axis`
+    /// and `-1` for the negative one. A hand crank, whose other end is the handle. It drives its
+    /// network at `rpm` (signed along `axis`) and carries `capacity` stress units per RPM; with
+    /// `rpm` zero it is only a joint and does not count as a source.
+    Stub {
+        axis: Axis,
+        side: i32,
+        rpm: f32,
+        capacity: f32,
+    },
 }
 
 /// The six unit steps from a block to its neighbours.
@@ -131,7 +141,8 @@ impl Kind {
             | Kind::Consumer { axis, .. }
             | Kind::Gearbox { axis }
             | Kind::Clutch { axis, .. }
-            | Kind::Gearshift { axis, .. } => axis,
+            | Kind::Gearshift { axis, .. }
+            | Kind::Stub { axis, .. } => axis,
         }
     }
 
@@ -151,6 +162,9 @@ impl Kind {
             | Kind::Generator { axis, .. }
             | Kind::Consumer { axis, .. } => (face == axis).then_some(1.0),
             Kind::Clutch { axis, engaged } => (engaged && face == axis).then_some(1.0),
+            Kind::Stub { axis, side, .. } => {
+                (face == axis && (sign as i32) == side).then_some(1.0)
+            }
             Kind::Gearshift { axis, reversed } => {
                 (face == axis).then_some(if reversed && sign > 0.0 { -1.0 } else { 1.0 })
             }
@@ -170,6 +184,7 @@ impl Kind {
     pub fn drive(self) -> Option<f32> {
         match self {
             Kind::Generator { rpm, .. } => Some(rpm),
+            Kind::Stub { rpm, .. } => (rpm != 0.0).then_some(rpm),
             _ => None,
         }
     }
@@ -383,7 +398,8 @@ pub fn solve(mut lookup: impl FnMut(Pos) -> Option<Kind>, start: Pos) -> Option<
             let speed = speeds.get(pos).copied().unwrap_or(0.0).abs();
             match kinds[pos] {
                 Kind::Consumer { impact, .. } => stress += impact * speed,
-                Kind::Generator { capacity: per_rpm, .. } => capacity += per_rpm * speed,
+                Kind::Generator { capacity: per_rpm, .. }
+                | Kind::Stub { capacity: per_rpm, .. } => capacity += per_rpm * speed,
                 _ => {}
             }
         }
@@ -440,6 +456,68 @@ mod tests {
 
     fn rpm(network: &Network, pos: Pos) -> f32 {
         network.member(pos).unwrap().rpm
+    }
+
+    fn crank(side: i32, rpm: f32) -> Kind {
+        Kind::Stub {
+            axis: Axis::X,
+            side,
+            rpm,
+            capacity: 100.0,
+        }
+    }
+
+    #[test]
+    fn a_crank_drives_only_what_is_on_its_shaft_side() {
+        // A crank at x = 1 with its shaft end on the negative side: the shaft at x = 0 turns,
+        // the one on the handle side at x = 2 is not part of its network.
+        let nodes = [
+            ([0, 0, 0], shaft(Axis::X)),
+            ([1, 0, 0], crank(-1, 32.0)),
+            ([2, 0, 0], shaft(Axis::X)),
+        ];
+        let network = solve(world(&nodes), [1, 0, 0]).unwrap();
+        assert_eq!(network.status, Status::Running);
+        assert_eq!(network.members.len(), 2);
+        assert_eq!(rpm(&network, [0, 0, 0]), 32.0);
+        assert!(network.member([2, 0, 0]).is_none());
+        // Seen from the handle side, the lone shaft is a network of its own with no source.
+        let lone = solve(world(&nodes), [2, 0, 0]).unwrap();
+        assert_eq!(lone.status, Status::Idle);
+        assert_eq!(lone.members.len(), 1);
+    }
+
+    #[test]
+    fn a_crank_on_the_positive_side_joins_the_shaft_after_it() {
+        let nodes = [
+            ([0, 0, 0], shaft(Axis::X)),
+            ([1, 0, 0], crank(1, 32.0)),
+            ([2, 0, 0], shaft(Axis::X)),
+        ];
+        let network = solve(world(&nodes), [1, 0, 0]).unwrap();
+        assert_eq!(network.members.len(), 2);
+        assert_eq!(rpm(&network, [2, 0, 0]), 32.0);
+        assert!(network.member([0, 0, 0]).is_none());
+    }
+
+    #[test]
+    fn a_crank_carries_its_capacity_and_a_resting_one_is_only_a_joint() {
+        let nodes = [
+            ([0, 0, 0], consumer(Axis::X, 2.0)),
+            ([1, 0, 0], crank(-1, 10.0)),
+        ];
+        let network = solve(world(&nodes), [1, 0, 0]).unwrap();
+        assert_eq!(network.capacity, 1000.0);
+        assert_eq!(network.stress, 20.0);
+        // At rest the crank is no source: the network is idle, and a second source can drive it.
+        let resting = [
+            ([0, 0, 0], motor(Axis::X, 16.0)),
+            ([1, 0, 0], shaft(Axis::X)),
+            ([2, 0, 0], crank(-1, 0.0)),
+        ];
+        let network = solve(world(&resting), [0, 0, 0]).unwrap();
+        assert_eq!(network.status, Status::Running);
+        assert_eq!(rpm(&network, [2, 0, 0]), 16.0);
     }
 
     #[test]

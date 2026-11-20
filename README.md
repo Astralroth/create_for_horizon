@@ -31,7 +31,7 @@ Horizon** creative tab.
 | **Clutch** | A shaft that lets go while it has a redstone signal, cutting the line in two. |
 | **Gearshift** | A shaft that reverses the far side while it has a redstone signal. |
 | **Speedometer** / **Stressometer** | Stick one on a block: a needle shows its speed, or the share of stress in use. |
-| **Hand Crank** | A small source. Right click it with an empty hand: it turns at 32 RPM for a moment, and holding the use button keeps it turning. Sneak with an empty hand to read its network. It carries 256 stress units per RPM. |
+| **Hand Crank** | A small source with a shaft end only on the side it is stuck to (the handle side joins nothing). Right click it with an empty hand: it turns at 32 RPM for a moment, and holding the use button keeps it turning. Sneak with an empty hand to read its network. It carries 256 stress units per RPM. |
 | **Water Wheel** | A small source. It turns at 4 RPM for each of its four sides (across its axis) that has flowing water against it, up to 16 RPM; a still source block does not count. The Wrench on an end reverses it. 256 stress units per RPM. |
 | **Mechanical Drill** | Uses 8 stress units per RPM and breaks the block in front of it. |
 | **Mechanical Saw** | Uses 12 stress units per RPM and fells the log in front of it (any log, stem or wood block), a little faster than the drill would. |

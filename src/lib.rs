@@ -96,7 +96,7 @@ impl Keys {
                 axis,
                 impact: worker.impact(),
             })
-        } else if block == self.crank || block == self.wheel {
+        } else if block == self.wheel {
             // A small source: at rest it is only a joint, so the network still passes through.
             Some(if source_rpm == 0.0 {
                 Kind::Shaft { axis }
@@ -205,18 +205,27 @@ fn node_at(
 ) -> Option<Kind> {
     let block = level.block(host, pos)?;
     let axis = turning_axis(|name| level.block_property(host, pos, name))?;
-    let inverted = level.block_property(host, pos, "invert").as_deref() == Some("true");
-    let source_rpm = if block == keys.motor {
-        let (rpm, invert) = motor::read(|name| level.block_property(host, pos, name));
-        motor::signed(rpm, invert)
-    } else if block == keys.crank {
+    if block == keys.crank {
+        // The crank has a shaft end only on the side it is stuck to, opposite the way it faces;
+        // the other end is its handle and joins nothing.
+        let facing = Direction::from_name(&level.block_property(host, pos, "facing")?)?;
         let charge = level
             .block_property(host, pos, "charge")
             .and_then(|value| sources::charge_from(&value))
             .unwrap_or(0);
-        sources::crank_rpm(charge)
+        return Some(Kind::Stub {
+            axis,
+            side: facing.opposite().vector().into_iter().sum(),
+            rpm: sources::crank_rpm(charge),
+            capacity: sources::CAPACITY_PER_RPM,
+        });
+    }
+    let inverted = level.block_property(host, pos, "invert").as_deref() == Some("true");
+    let source_rpm = if block == keys.motor {
+        let (rpm, invert) = motor::read(|name| level.block_property(host, pos, name));
+        motor::signed(rpm, invert)
     } else if block == keys.wheel {
-        sources::wheel_rpm(flowing_sides(keys, level, host, pos, axis), inverted)
+        sources::wheel_rpm(water_push(keys, level, host, pos, axis), inverted)
     } else {
         0.0
     };
@@ -225,25 +234,43 @@ fn node_at(
     keys.kind_of(block, axis, source_rpm, powered)
 }
 
-/// How many of the four sides of a wheel turning about `axis` have flowing water against them.
-fn flowing_sides(
+/// How the flowing water around a wheel turning about `axis` pushes it, side by side: each of
+/// the four sides across the axis counts `1` or `-1` by the way its current turns the wheel, and
+/// currents that push opposite ways cancel.
+fn water_push(
     keys: &Keys,
     level: &mod_api::LevelRef,
     host: &dyn mod_api::Host,
     pos: Pos,
     axis: Axis,
-) -> usize {
+) -> i32 {
+    // The axis as a vector, pointing to its positive end.
+    let along = Direction::ALL
+        .into_iter()
+        .find(|direction| direction.axis() == axis && direction.vector().iter().sum::<i32>() > 0)
+        .map_or([0; 3], Direction::vector);
     Direction::ALL
         .into_iter()
         .filter(|direction| direction.axis() != axis)
-        .filter(|direction| {
+        .map(|direction| {
             let side = direction.step(pos);
-            level.block(host, side) == Some(keys.water)
+            let flowing = level.block(host, side) == Some(keys.water)
                 && level
                     .fluid_state(host, side)
-                    .is_some_and(|fluid| !fluid.is_empty() && !fluid.is_source())
+                    .is_some_and(|fluid| !fluid.is_empty() && !fluid.is_source());
+            if !flowing {
+                return 0;
+            }
+            let Some(flow) = level.fluid_flow(host, side) else {
+                return 0;
+            };
+            sources::push(sources::turning(
+                along,
+                direction.vector(),
+                [flow.x, flow.y, flow.z],
+            ))
         })
-        .count()
+        .sum()
 }
 
 /// The tick offset that spreads the blocks' periodic work out, so they do not all look at once.

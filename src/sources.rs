@@ -43,10 +43,37 @@ pub fn crank_rpm(charge: u8) -> f32 {
     if charge == 0 { 0.0 } else { CRANK_RPM }
 }
 
-/// The signed speed of a wheel with flowing water on `sides` of its four, turned around when
-/// `invert` is set. More sides than a wheel has count as all four.
-pub fn wheel_rpm(sides: usize, invert: bool) -> f32 {
-    let rpm = sides.min(WHEEL_SIDES) as f32 * WHEEL_RPM_PER_SIDE;
+/// How much the water in the cell at `offset` from a wheel turns it about `axis`: the component
+/// of the torque `offset x flow` along the axis. Positive is counterclockwise seen from the
+/// positive end of the axis, the convention of every shaft in a network. Water on opposite sides
+/// of the wheel flowing the same way gives opposite signs, so it cancels.
+pub fn turning(axis: [i32; 3], offset: [i32; 3], flow: [f64; 3]) -> f64 {
+    let r = offset.map(f64::from);
+    let torque = [
+        r[1] * flow[2] - r[2] * flow[1],
+        r[2] * flow[0] - r[0] * flow[2],
+        r[0] * flow[1] - r[1] * flow[0],
+    ];
+    (0..3).map(|i| f64::from(axis[i]) * torque[i]).sum()
+}
+
+/// What one side's water does to the wheel: `1` or `-1` when it turns it clearly one way, `0`
+/// when it hardly pushes at all (still water, or a flow straight at the axle).
+pub fn push(turning: f64) -> i32 {
+    if turning > 0.1 {
+        1
+    } else if turning < -0.1 {
+        -1
+    } else {
+        0
+    }
+}
+
+/// The signed speed of a wheel whose sides push it by `net` in all (each side counts one, and
+/// sides pushing opposite ways cancel), turned around when `invert` is set.
+pub fn wheel_rpm(net: i32, invert: bool) -> f32 {
+    let rpm = net.unsigned_abs().min(WHEEL_SIDES as u32) as f32 * WHEEL_RPM_PER_SIDE;
+    let rpm = if net < 0 { -rpm } else { rpm };
     if invert { -rpm } else { rpm }
 }
 
@@ -91,18 +118,69 @@ mod tests {
     }
 
     #[test]
-    fn a_wheel_is_as_fast_as_it_has_wet_sides() {
+    fn a_wheel_is_as_fast_as_the_net_push_of_its_sides() {
         assert_eq!(wheel_rpm(0, false), 0.0);
         assert_eq!(wheel_rpm(1, false), 4.0);
         assert_eq!(wheel_rpm(2, false), 8.0);
         assert_eq!(wheel_rpm(4, false), 16.0);
+        assert_eq!(wheel_rpm(-2, false), -8.0);
         // There is no fifth side.
         assert_eq!(wheel_rpm(9, false), 16.0);
+    }
+
+    const X: [i32; 3] = [1, 0, 0];
+
+    #[test]
+    fn a_stream_over_the_top_and_one_under_the_bottom_flowing_the_same_way_cancel() {
+        // A wheel turning about x with water above (offset +y) and below (-y), both flowing
+        // south (+z): one stream pushes it each way, so they act against each other.
+        let above = turning(X, [0, 1, 0], [0.0, 0.0, 1.0]);
+        let below = turning(X, [0, -1, 0], [0.0, 0.0, 1.0]);
+        assert_eq!(push(above), -push(below));
+        assert_ne!(push(above), 0);
+        assert_eq!(push(above) + push(below), 0);
+    }
+
+    #[test]
+    fn streams_that_flow_opposite_ways_on_opposite_sides_add_up() {
+        // Over the top flowing south and under the bottom flowing north is what a real wheel
+        // in a current feels: both push it the same way.
+        let above = turning(X, [0, 1, 0], [0.0, 0.0, 1.0]);
+        let below = turning(X, [0, -1, 0], [0.0, 0.0, -1.0]);
+        assert_eq!(push(above), push(below));
+        assert_eq!(push(above) + push(below), 2 * push(above));
+    }
+
+    #[test]
+    fn a_stream_flowing_toward_the_axle_or_along_it_does_not_turn_the_wheel() {
+        // Water above flowing straight down at the wheel, or along its axis.
+        assert_eq!(push(turning(X, [0, 1, 0], [0.0, -1.0, 0.0])), 0);
+        assert_eq!(push(turning(X, [0, 1, 0], [1.0, 0.0, 0.0])), 0);
+        // Still water has no flow.
+        assert_eq!(push(turning(X, [0, 1, 0], [0.0, 0.0, 0.0])), 0);
+    }
+
+    #[test]
+    fn a_falling_stream_on_one_side_turns_the_wheel_and_on_both_sides_stops_it() {
+        // Water falling past the +z side and past the -z side of a wheel about x.
+        let one = turning(X, [0, 0, 1], [0.0, -1.0, 0.0]);
+        let other = turning(X, [0, 0, -1], [0.0, -1.0, 0.0]);
+        assert_ne!(push(one), 0);
+        assert_eq!(push(one) + push(other), 0);
+    }
+
+    #[test]
+    fn the_turning_sign_follows_the_counterclockwise_convention() {
+        // Seen from +x looking back at the origin, y points up and z points to the left, so
+        // water above flowing toward +z moves counterclockwise.
+        assert!(turning(X, [0, 1, 0], [0.0, 0.0, 1.0]) > 0.0);
+        assert!(turning(X, [0, 1, 0], [0.0, 0.0, -1.0]) < 0.0);
     }
 
     #[test]
     fn inverting_a_wheel_turns_it_the_other_way_but_not_faster() {
         assert_eq!(wheel_rpm(3, true), -wheel_rpm(3, false));
+        assert_eq!(wheel_rpm(-3, true), 12.0);
         // Zero stays zero, with no negative zero to confuse a comparison.
         assert_eq!(wheel_rpm(0, true), 0.0);
     }
