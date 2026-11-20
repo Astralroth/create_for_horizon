@@ -117,14 +117,18 @@ Risk: low for correctness, high for taste. Test: look at every block and item in
 including powered clutch and gearshift and a gauge's dial; switch the game to Spanish and check the
 names and the click report; listen to the wrench, the motor clicks and a working drill.
 
-## M7 · Items on machines (needs research)
+## M7 · Items on machines — researched, not started
 
 Processing that holds items: a **Millstone** and a **Mechanical Press** on a **Depot**.
 
-- Needs inventories, item entities and recipes. The API has what is required, but it is the
-  largest unknown so far, so this milestone starts with a research step and a decision.
+- The research is done: see [docs/M7-research.md](docs/M7-research.md). The SDK has what is needed
+  (mod block containers that hoppers use, item slots, custom recipe types read as data, items drawn
+  on a block entity); five details are still to be confirmed in the game.
+- Suggested build order: **M7a** Depot (container, right click in and out, item drawn on top),
+  **M7b** Press (a `create:pressing` recipe, progress, a ram), **M7c** Millstone (input and output
+  slots, a `create:milling` recipe).
 
-Risk: high. Not started until M5 is confirmed.
+Risk: medium for M7a (the first use of containers and of syncing an item to the client), then low.
 
 ## M8 · Logistics (needs research)
 
