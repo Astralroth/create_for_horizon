@@ -1,5 +1,5 @@
 {
-  "template": "minecraft:oak_log",
+  "template": "minecraft:stone",
   "state_properties": {
     "facing": { "type": "enum", "values": ["north", "south", "east", "west", "up", "down"] },
     "charge": { "type": "enum", "values": ["0", "1", "2", "3", "4"] },

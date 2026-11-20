@@ -8,9 +8,10 @@ of them. This is an independent project, written from scratch as a native Horizo
 by the gameplay of the Create mod. It contains no code or assets from Create or from other ports.
 
 **Status: M0 to M6 of the [roadmap](ROADMAP.md).** Everything passes Horizon's own package
-checks and the unit tests. M0 to M3 were tried in the game, and M6's look was seen there; M4 and M5
-(the crank, the wheel, the saw, the harvester and the plough) have not been tried in the game yet.
-See [Limitations](#limitations).
+checks and the unit tests. M0 to M3 were tried in the game, and M6's look was seen there. The water
+wheel (with the Wrench reversing it), the saw, the harvester and the plough were tried in the game
+through Agent Control and worked; the hand crank charged and wore off as designed, but its link to
+the shafts was fixed afterwards and is waiting for a second try. See [Limitations](#limitations).
 
 ## Install
 

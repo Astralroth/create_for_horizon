@@ -22,9 +22,10 @@ Not yet tried in the game: the drill, and rotation drawing unless already confir
 M0 to M3 are built and were tried in the game ("works well"). M6 (look and sound) was built next, at
 the user's request, ahead of M4 and M5, and its look and the M3 blocks were tried again through
 Agent Control (motor, shafts, wrench, cogs, drill, gauges, clutch, gearshift, gearbox); the
-sneak-click on the motor, Spanish and the sounds were not. M4 and M5 are built last: they pass
-`cargo horizon-mod check`, the build and the unit tests and are waiting for their first run in the
-game. The test list under each milestone says what to try.
+sneak-click on the motor, Spanish and the sounds were not. M4 and M5 were built last and tried the
+same way: the water wheel, saw, harvester and plough worked; the hand crank needed a fix (its
+block definition inherited an `axis` from its template, so it never joined a shaft line) that is
+waiting for a second try. The test list under each milestone says what to try.
 
 ## M1 · Adjustable motor ◆ — built
 
@@ -66,7 +67,7 @@ is not. Test: turn a corner with a gearbox and check the direction after it; fee
 clutch with a lever beside it and watch it stop and start; reverse a line with a gearshift; put two
 reversed gearshifts in a row and confirm they cancel.
 
-## M4 · More sources — built, not tried in the game
+## M4 · More sources — built; wheel tried, crank fixed and waiting
 
 Ways to make power other than the Creative Motor.
 
@@ -82,7 +83,7 @@ Ways to make power other than the Creative Motor.
 Risk: medium (water flow needs reading fluid states). Test: crank a drill into rock; place a wheel
 in a stream and check the speed.
 
-## M5 · More machines ◆ — built, not tried in the game
+## M5 · More machines ◆ — built and tried in the game
 
 Machines that use the stress, in the style of the drill (they act on blocks, no inventories). They
 share the drill's casing, orientation, wrench rules and progress counter (`src/work.rs`).
