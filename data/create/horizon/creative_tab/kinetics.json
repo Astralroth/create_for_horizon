@@ -20,6 +20,7 @@
     "create:depot",
     "create:mechanical_press",
     "create:millstone",
+    "create:belt",
     "create:wrench"
   ]
 }

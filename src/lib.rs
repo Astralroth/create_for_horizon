@@ -13,6 +13,8 @@ use mod_api::{
 use mod_api::{BlockMetadata, BlockState};
 use std::sync::OnceLock;
 
+mod belt;
+mod belts;
 mod depot;
 mod direction;
 mod engine;
@@ -55,6 +57,7 @@ struct Keys {
     plough: BlockKey,
     press: BlockKey,
     millstone: BlockKey,
+    belt: BlockKey,
     crank: BlockKey,
     wheel: BlockKey,
     speedometer: BlockKey,
@@ -115,6 +118,11 @@ impl Keys {
                 axis,
                 impact: milling::IMPACT,
             })
+        } else if block == self.belt {
+            Some(Kind::Consumer {
+                axis,
+                impact: belt::IMPACT,
+            })
         } else if block == self.wheel {
             // A small source: at rest it is only a joint, so the network still passes through.
             Some(if source_rpm == 0.0 {
@@ -170,6 +178,7 @@ impl Keys {
             "create:mechanical_plough" => Some(self.plough),
             "create:mechanical_press" => Some(self.press),
             "create:millstone" => Some(self.millstone),
+            "create:belt" => Some(self.belt),
             "create:hand_crank" => Some(self.crank),
             "create:water_wheel" => Some(self.wheel),
             "create:speedometer" => Some(self.speedometer),
@@ -605,8 +614,12 @@ impl BlockPart for Machine {
         let click = event.click;
         let keys = KEYS.get()?;
         if click.stack?.item() != keys.wrench {
-            // Any other item can go into a millstone; no other machine takes items by hand.
-            return millstone::put(host, click);
+            // Any other item can go into a millstone or onto a belt; no other machine takes
+            // items by hand.
+            if let Some(done) = millstone::put(host, click) {
+                return Some(done);
+            }
+            return belts::put(host, click);
         }
         let player = host.player(click.player)?;
         let level = player.level(host)?;
@@ -738,7 +751,11 @@ impl ItemPart for FacesWherePlacerLooks {
 
 /// Makes a press run its shaft along the horizontal axis its player looks along, so it is never
 /// placed with the shaft straight up and the ram beside it.
-struct ShaftAlongLook;
+struct ShaftAlongLook {
+    /// Run the shaft across the look instead of along it: a belt carries items where its player
+    /// looks, so its shaft is the other way.
+    across: bool,
+}
 
 #[mod_api::horizon_part]
 impl ItemPart for ShaftAlongLook {
@@ -747,7 +764,12 @@ impl ItemPart for ShaftAlongLook {
         let Some([yaw, _]) = placer.entity().rotation(host) else {
             return;
         };
-        let axis = Direction::from_look(yaw, 0.0).axis();
+        let looked = Direction::from_look(yaw, 0.0).axis();
+        let axis = match (self.across, looked) {
+            (true, Axis::X) => Axis::Z,
+            (true, _) => Axis::X,
+            (false, looked) => looked,
+        };
         host.set_block_property(event.pos, "axis", axis.name());
     }
 }
@@ -789,6 +811,7 @@ impl BlockEntityPart for Kinetic {
                 | "create:mechanical_plough"
                 | "create:mechanical_press"
                 | "create:millstone"
+                | "create:belt"
         )
         .then(|| {
             let mut data = Compound::new();
@@ -812,6 +835,15 @@ impl BlockEntityPart for Kinetic {
         let _ = press::tick(host, event);
         let _ = millstone::tick(host, event);
         let _ = motor_screen::sync(host, event);
+        let _ = belts::tick(host, event);
+    }
+
+    /// What a client gets of a belt: the riders (other kinetic blocks send nothing).
+    fn block_entity_update_tag(
+        &self,
+        event: &mut mod_api::BlockEntityUpdateTagEvent<'_>,
+    ) -> Option<Compound> {
+        belts::update_tag(event)
     }
 
     /// The Creative Motor's screen: its layout, its drawing, a press on it and what the press
@@ -849,6 +881,10 @@ impl BlockEntityPart for Kinetic {
         let Some(block) = keys.block_named(event.block) else {
             return;
         };
+        if block == keys.belt {
+            belts::submit(host, event, block);
+            return;
+        }
         let states = host.block_states();
         let property = |name: &str| event.state.property(&states, name).ok().flatten();
         let level = property("speed")
@@ -1007,6 +1043,7 @@ impl Hooks for CreateMod {
             plough: registrar.block_key("create:mechanical_plough"),
             press: registrar.block_key("create:mechanical_press"),
             millstone: registrar.block_key("create:millstone"),
+            belt: registrar.block_key("create:belt"),
             crank: registrar.block_key("create:hand_crank"),
             wheel: registrar.block_key("create:water_wheel"),
             speedometer: registrar.block_key("create:speedometer"),
@@ -1029,6 +1066,7 @@ impl Hooks for CreateMod {
             keys.plough,
             keys.press,
             keys.millstone,
+            keys.belt,
             keys.crank,
             keys.wheel,
             keys.speedometer,
@@ -1052,6 +1090,7 @@ impl Hooks for CreateMod {
                 "mechanical_plough",
                 "mechanical_press",
                 "millstone",
+                "belt",
                 "hand_crank",
                 "water_wheel",
                 "speedometer",
@@ -1072,6 +1111,11 @@ impl Hooks for CreateMod {
         // The motor opens a screen with a speed slider; the one slot is only there because a menu
         // needs at least one.
         registrar.block_container(&keys.motor, motor_screen::container());
+        // A belt takes items from hoppers, chutes and other belts through a door of its own.
+        registrar.block_capability(&mod_api::ITEMS, &keys.belt, |_, at, _, _| {
+            Some(Box::new(belts::BeltItems::new(at))
+                as Box<dyn mod_api::ResourceHandler<mod_api::ItemResource>>)
+        });
         // The millstone's two slots: hoppers fill the input and empty the output.
         registrar.block_container(&keys.millstone, millstone::container());
         // The depot holds an item: a container for hoppers, clicks to put and take, and a block
@@ -1098,8 +1142,10 @@ impl Hooks for CreateMod {
         }
         for name in ["create:mechanical_press", "create:millstone"] {
             let item = registrar.item_key(name);
-            registrar.item_part(item, ShaftAlongLook);
+            registrar.item_part(item, ShaftAlongLook { across: false });
         }
+        let belt_item = registrar.item_key("create:belt");
+        registrar.item_part(belt_item, ShaftAlongLook { across: true });
         for name in [
             "create:speedometer",
             "create:stressometer",

@@ -203,6 +203,17 @@ Noise $c $r 7
 Border $c -30 18
 Save-Canvas $c $blockDir 'plough_share'
 
+# Belt surface: dark rubber with a lighter bar across every four pixels. It repeats every four rows,
+# so it scrolls without a seam when the mod moves it along the belt.
+$c = New-Canvas; $r = Seed 'belt_surface'
+for ($y = 0; $y -lt 16; $y++) { for ($x = 0; $x -lt 16; $x++) {
+    if (($y % 4) -eq 0) { Put $c $x $y 92 92 100 }
+    elseif (($y % 4) -eq 1) { Put $c $x $y 62 62 70 }
+    else { Put $c $x $y 44 44 50 }
+} }
+foreach ($y in 0..15) { Shade $c 0 $y -14; Shade $c 15 $y -14 }
+Save-Canvas $c $blockDir 'belt_surface'
+
 "Items:"
 # The wrench: a steel handle running down-left and an open jaw at the top right.
 $c = New-Canvas
