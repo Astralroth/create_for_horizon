@@ -1,0 +1,33 @@
+{
+  "textures": {
+    "top": "create:block/copper_plate",
+    "side": "create:block/steel",
+    "particle": "create:block/steel"
+  },
+  "elements": [
+    {
+      "from": [1, 0, 1],
+      "to": [15, 3, 15],
+      "faces": {
+        "down": { "uv": [1, 1, 15, 15], "texture": "#side" },
+        "up": { "uv": [1, 1, 15, 15], "texture": "#side" },
+        "north": { "uv": [1, 0, 15, 3], "texture": "#side" },
+        "south": { "uv": [1, 0, 15, 3], "texture": "#side" },
+        "west": { "uv": [1, 0, 15, 3], "texture": "#side" },
+        "east": { "uv": [1, 0, 15, 3], "texture": "#side" }
+      }
+    },
+    {
+      "from": [2, 3, 2],
+      "to": [14, 4, 14],
+      "faces": {
+        "down": { "uv": [2, 2, 14, 14], "texture": "#top" },
+        "up": { "uv": [2, 2, 14, 14], "texture": "#top" },
+        "north": { "uv": [2, 3, 14, 4], "texture": "#top" },
+        "south": { "uv": [2, 3, 14, 4], "texture": "#top" },
+        "west": { "uv": [2, 3, 14, 4], "texture": "#top" },
+        "east": { "uv": [2, 3, 14, 4], "texture": "#top" }
+      }
+    }
+  ]
+}

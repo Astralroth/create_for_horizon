@@ -13,6 +13,7 @@ use mod_api::{
 use mod_api::{BlockMetadata, BlockState};
 use std::sync::OnceLock;
 
+mod depot;
 mod direction;
 mod engine;
 mod messages;
@@ -920,6 +921,19 @@ impl Hooks for CreateMod {
         registrar
             .block_entity_part(&kinetic, Kinetic)
             .expect("kinetic is a native block entity type");
+        // The depot holds an item: a container for hoppers, clicks to put and take, and a block
+        // entity of its own that draws the item.
+        let depot_block = registrar.block_key("create:depot");
+        depot::remember(depot_block);
+        registrar.block_part(depot_block, depot::DepotBlock);
+        registrar.block_container(&depot_block, depot::container());
+        let depot_entity = registrar
+            .block_entity_type("depot")
+            .blocks(&["depot"])
+            .build();
+        registrar
+            .block_entity_part(&depot_entity, depot::DepotEntity)
+            .expect("depot is a native block entity type");
         for name in [
             "create:mechanical_drill",
             "create:mechanical_saw",

@@ -117,7 +117,7 @@ Risk: low for correctness, high for taste. Test: look at every block and item in
 including powered clutch and gearshift and a gauge's dial; switch the game to Spanish and check the
 names and the click report; listen to the wrench, the motor clicks and a working drill.
 
-## M7 · Items on machines — researched, not started
+## M7 · Items on machines — M7a built, waiting for its first try in the game
 
 Processing that holds items: a **Millstone** and a **Mechanical Press** on a **Depot**.
 

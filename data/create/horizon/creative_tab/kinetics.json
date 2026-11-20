@@ -17,6 +17,7 @@
     "create:mechanical_plough",
     "create:speedometer",
     "create:stressometer",
+    "create:depot",
     "create:wrench"
   ]
 }

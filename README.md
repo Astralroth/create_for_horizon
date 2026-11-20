@@ -33,6 +33,7 @@ Horizon** creative tab.
 | **Speedometer** / **Stressometer** | Stick one on a block: a needle shows its speed, or the share of stress in use. |
 | **Hand Crank** | A small source with a shaft end only on the side it is stuck to (the handle side joins nothing). Right click it with an empty hand: it turns at 32 RPM for a moment, and holding the use button keeps it turning. Sneak with an empty hand to read its network. It carries 256 stress units per RPM. |
 | **Water Wheel** | A small source. Each of its four sides (across its axis) with flowing water pushes it one way or the other by the direction of the current, and it turns at 4 RPM for each net push, up to 16 RPM. Currents that push opposite ways cancel, so water flowing both ways around it does not turn it; still source blocks do not count. The Wrench on an end reverses it. 256 stress units per RPM. |
+| **Depot** | Holds one item on top. Right click with an item puts one on it, right click with an empty hand takes it back, and hoppers fill and empty it from any side. Sneak to place a block against it instead. (First step of M7; the press and the millstone are not built yet.) |
 | **Mechanical Drill** | Uses 8 stress units per RPM and breaks the block in front of it. |
 | **Mechanical Saw** | Uses 12 stress units per RPM and fells the log in front of it (any log, stem or wood block), a little faster than the drill would. |
 | **Mechanical Harvester** | Uses 6 stress units per RPM. Harvests the ripe crop in front of it (wheat, carrots, potatoes, beetroots, nether wart) and plants it again. |
@@ -45,7 +46,7 @@ shaft + redstone + gold ingot. Speedometer = cogwheel + compass. Stressometer = 
 Wrench = 2 iron ingots + stick. Mechanical Drill = cogwheel + iron pickaxe + iron ingot. Mechanical
 Saw = cogwheel + iron axe + iron ingot. Mechanical Harvester = cogwheel + shears + iron ingot.
 Mechanical Plough = cogwheel + iron hoe + iron ingot. Hand Crank = shaft + 2 sticks. Water Wheel =
-cogwheel + 4 oak planks. The Creative Motor has no recipe.
+cogwheel + 4 oak planks. Depot = stone slab + iron nugget. The Creative Motor has no recipe.
 
 ### How to use it
 
