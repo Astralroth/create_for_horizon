@@ -147,6 +147,59 @@ pub fn press_at(at: [f32; 2]) -> Option<i32> {
     None
 }
 
+/// The signed speed a pointer at `at` (relative to the screen's corner) is over on the slider, for
+/// the tooltip; `None` anywhere that is not the track.
+pub fn speed_under(at: [f32; 2]) -> Option<i32> {
+    match press_at(at)? {
+        index @ 0..=17 => motor::slider_values().get(index as usize).copied(),
+        _ => None,
+    }
+}
+
+/// The tooltip over the motor's screen: the speed under the pointer, when it is on the slider.
+pub fn tooltip(block: &str, at: [f32; 2], lines: &mut Vec<String>) {
+    if block != BLOCK {
+        return;
+    }
+    if let Some(speed) = speed_under(at) {
+        lines.push(format!("{speed} RPM"));
+    }
+}
+
+/// The menu button a turn of the wheel stands for: one step forwards when it scrolls up and one
+/// step backwards when it scrolls down; `None` when it did not turn.
+pub fn wheel_button(vertical: f64) -> Option<i32> {
+    if vertical > 0.0 {
+        Some(BUTTON_STEP_FORWARD)
+    } else if vertical < 0.0 {
+        Some(BUTTON_STEP_BACK)
+    } else {
+        None
+    }
+}
+
+/// The wheel over the motor's screen steps the speed. Anywhere else it is left alone.
+pub fn scrolled(
+    host: &mut dyn mod_api::ClientHost,
+    event: &mod_api::MouseScrollingEvent,
+) -> mod_api::Flow {
+    let Some(button) = wheel_button(event.scroll[1]) else {
+        return mod_api::Flow::Continue;
+    };
+    let Some(player) = host.local_player() else {
+        return mod_api::Flow::Continue;
+    };
+    let Some(menu) = player.container_menu(&*host) else {
+        return mod_api::Flow::Continue;
+    };
+    if menu.kind(&*host) != Some(Some(MENU.to_string())) {
+        return mod_api::Flow::Continue;
+    }
+    menu.click_button(host, button);
+    // The press was the wheel's use: the screen does not scroll anything else.
+    mod_api::Flow::Cancel
+}
+
 /// A press on the screen: only the left button, only the motor's own screen.
 pub fn click(event: &ScreenClickEvent<'_>) -> Option<i32> {
     if event.block != BLOCK || event.right {
@@ -209,6 +262,32 @@ mod tests {
         // Between the two buttons, below the track.
         assert_eq!(press_at([WIDTH / 2.0, BUTTON_Y + 2.0]), None);
         assert_eq!(press_at([300.0, TRACK_TOP]), None);
+    }
+
+    #[test]
+    fn the_tooltip_names_the_speed_under_the_pointer_on_the_slider_only() {
+        let y = TRACK_TOP + 2.0;
+        assert_eq!(speed_under([TRACK_LEFT, y]), Some(-256));
+        assert_eq!(speed_under([TRACK_LEFT + TRACK_WIDTH, y]), Some(256));
+        assert_eq!(speed_under([5.0, 5.0]), None);
+        // The step buttons are not the slider.
+        assert_eq!(speed_under([BUTTON_BACK_X + 2.0, BUTTON_Y + 2.0]), None);
+        let mut lines = Vec::new();
+        tooltip(BLOCK, [TRACK_LEFT, y], &mut lines);
+        assert_eq!(lines, ["-256 RPM"]);
+        // Another block's screen, or nothing under the pointer, adds nothing.
+        let mut other = Vec::new();
+        tooltip("create:shaft", [TRACK_LEFT, y], &mut other);
+        tooltip(BLOCK, [5.0, 5.0], &mut other);
+        assert!(other.is_empty());
+    }
+
+    #[test]
+    fn the_wheel_steps_forwards_when_it_scrolls_up_and_backwards_down() {
+        assert_eq!(wheel_button(1.0), Some(BUTTON_STEP_FORWARD));
+        assert_eq!(wheel_button(0.25), Some(BUTTON_STEP_FORWARD));
+        assert_eq!(wheel_button(-1.0), Some(BUTTON_STEP_BACK));
+        assert_eq!(wheel_button(0.0), None);
     }
 
     #[test]

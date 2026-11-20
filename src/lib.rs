@@ -836,6 +836,10 @@ impl BlockEntityPart for Kinetic {
         motor_screen::click(event)
     }
 
+    fn screen_tooltip(&self, _: &dyn ClientHost, event: &mut mod_api::ScreenTooltipEvent<'_>) {
+        motor_screen::tooltip(event.block, event.at, event.lines);
+    }
+
     fn menu_button(&self, host: &mut dyn ServerHost, event: &mut mod_api::MenuButtonEvent<'_>) {
         motor_screen::press(host, event);
     }
@@ -1105,6 +1109,15 @@ impl Hooks for CreateMod {
             registrar.item_part(gauge_item, FacesAwayFromSupport);
         }
         let _ = KEYS.set(keys);
+    }
+
+    /// The wheel over the Creative Motor's screen steps its speed.
+    fn mouse_scrolling(
+        &self,
+        host: &mut dyn ClientHost,
+        event: &mut mod_api::MouseScrollingEvent,
+    ) -> mod_api::Flow {
+        motor_screen::scrolled(host, event)
     }
 
     /// A player joined: say that the mod is installed.
