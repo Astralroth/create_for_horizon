@@ -17,9 +17,12 @@ mod depot;
 mod direction;
 mod engine;
 mod messages;
+mod milling;
+mod millstone;
 mod motor;
 mod press;
 mod pressing;
+mod recipes;
 mod sources;
 mod visual;
 mod work;
@@ -50,6 +53,7 @@ struct Keys {
     harvester: BlockKey,
     plough: BlockKey,
     press: BlockKey,
+    millstone: BlockKey,
     crank: BlockKey,
     wheel: BlockKey,
     speedometer: BlockKey,
@@ -105,6 +109,11 @@ impl Keys {
                 axis,
                 impact: pressing::IMPACT,
             })
+        } else if block == self.millstone {
+            Some(Kind::Consumer {
+                axis,
+                impact: milling::IMPACT,
+            })
         } else if block == self.wheel {
             // A small source: at rest it is only a joint, so the network still passes through.
             Some(if source_rpm == 0.0 {
@@ -159,6 +168,7 @@ impl Keys {
             "create:mechanical_harvester" => Some(self.harvester),
             "create:mechanical_plough" => Some(self.plough),
             "create:mechanical_press" => Some(self.press),
+            "create:millstone" => Some(self.millstone),
             "create:hand_crank" => Some(self.crank),
             "create:water_wheel" => Some(self.wheel),
             "create:speedometer" => Some(self.speedometer),
@@ -594,7 +604,8 @@ impl BlockPart for Machine {
         let click = event.click;
         let keys = KEYS.get()?;
         if click.stack?.item() != keys.wrench {
-            return None;
+            // Any other item can go into a millstone; no other machine takes items by hand.
+            return millstone::put(host, click);
         }
         let player = host.player(click.player)?;
         let level = player.level(host)?;
@@ -644,6 +655,10 @@ impl BlockPart for Machine {
             return None;
         }
         let keys = KEYS.get()?;
+        // An empty hand takes what a millstone has ground, if it has any.
+        if let Some(taken) = millstone::take(host, click) {
+            return Some(taken);
+        }
         let player = host.player(click.player)?;
         let level = player.level(host)?;
         let sneaking = player.is_secondary_use_active(host) == Some(true);
@@ -762,6 +777,7 @@ impl BlockEntityPart for Kinetic {
                 | "create:mechanical_harvester"
                 | "create:mechanical_plough"
                 | "create:mechanical_press"
+                | "create:millstone"
         )
         .then(|| {
             let mut data = Compound::new();
@@ -783,6 +799,7 @@ impl BlockEntityPart for Kinetic {
         let _ = refresh(host, event.pos);
         let _ = work(host, event);
         let _ = press::tick(host, event);
+        let _ = millstone::tick(host, event);
     }
 
     fn block_entity_submit(&self, host: &dyn ClientHost, event: &mut BlockEntitySubmitEvent<'_>) {
@@ -847,6 +864,29 @@ impl BlockEntityPart for Kinetic {
                 draw.translate([0.0, -depth, 0.0]);
             }
             draw.block(block, &[("axis", axis_name), ("part", "head")]);
+            draw.pop();
+            return;
+        }
+        if block == keys.millstone {
+            // The basin stays, the shaft turns about the millstone's axis and the stones inside
+            // turn about the vertical.
+            let Some(axis_name) = property("axis") else {
+                return;
+            };
+            let Some(axis) = axis_from(axis_name) else {
+                return;
+            };
+            let draw = &mut *event.draw;
+            draw.push();
+            draw.block(block, &[("axis", axis_name), ("part", "body")]);
+            draw.pop();
+            draw.push();
+            draw.rotate_about(axis_vector(axis), degrees, [0.5; 3]);
+            draw.block(block, &[("axis", axis_name), ("part", "shaft")]);
+            draw.pop();
+            draw.push();
+            draw.rotate_about([0.0, 1.0, 0.0], degrees, [0.5; 3]);
+            draw.block(block, &[("axis", axis_name), ("part", "stones")]);
             draw.pop();
             return;
         }
@@ -924,6 +964,7 @@ impl Hooks for CreateMod {
             harvester: registrar.block_key("create:mechanical_harvester"),
             plough: registrar.block_key("create:mechanical_plough"),
             press: registrar.block_key("create:mechanical_press"),
+            millstone: registrar.block_key("create:millstone"),
             crank: registrar.block_key("create:hand_crank"),
             wheel: registrar.block_key("create:water_wheel"),
             speedometer: registrar.block_key("create:speedometer"),
@@ -945,6 +986,7 @@ impl Hooks for CreateMod {
             keys.harvester,
             keys.plough,
             keys.press,
+            keys.millstone,
             keys.crank,
             keys.wheel,
             keys.speedometer,
@@ -967,6 +1009,7 @@ impl Hooks for CreateMod {
                 "mechanical_harvester",
                 "mechanical_plough",
                 "mechanical_press",
+                "millstone",
                 "hand_crank",
                 "water_wheel",
                 "speedometer",
@@ -982,6 +1025,10 @@ impl Hooks for CreateMod {
         // refuses to load unless the type and its serializer are declared.
         registrar.register_recipe_type(press::RECIPE_TYPE);
         registrar.register_raw_recipe_serializer(press::RECIPE_TYPE, press::RECIPE_TYPE);
+        registrar.register_recipe_type(millstone::RECIPE_TYPE);
+        registrar.register_raw_recipe_serializer(millstone::RECIPE_TYPE, millstone::RECIPE_TYPE);
+        // The millstone's two slots: hoppers fill the input and empty the output.
+        registrar.block_container(&keys.millstone, millstone::container());
         // The depot holds an item: a container for hoppers, clicks to put and take, and a block
         // entity of its own that draws the item.
         let depot_block = registrar.block_key("create:depot");
@@ -1004,8 +1051,10 @@ impl Hooks for CreateMod {
             let machine_item = registrar.item_key(name);
             registrar.item_part(machine_item, FacesWherePlacerLooks);
         }
-        let press_item = registrar.item_key("create:mechanical_press");
-        registrar.item_part(press_item, ShaftAlongLook);
+        for name in ["create:mechanical_press", "create:millstone"] {
+            let item = registrar.item_key(name);
+            registrar.item_part(item, ShaftAlongLook);
+        }
         for name in [
             "create:speedometer",
             "create:stressometer",

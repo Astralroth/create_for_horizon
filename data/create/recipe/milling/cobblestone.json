@@ -1,0 +1,6 @@
+{
+  "type": "create:milling",
+  "ingredient": "minecraft:cobblestone",
+  "result": { "id": "minecraft:gravel", "count": 1 },
+  "work": 400
+}

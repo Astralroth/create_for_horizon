@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": ["create:large_cogwheel", "minecraft:cobblestone", "minecraft:cobblestone"],
+  "result": { "id": "create:millstone" }
+}

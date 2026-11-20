@@ -225,7 +225,50 @@ Write-File 'data/create/recipe/pressing/iron_ingot.json' (Pressing-Json 'minecra
 Write-File 'data/create/recipe/pressing/gold_ingot.json' (Pressing-Json 'minecraft:gold_ingot' 'minecraft:gold_nugget' 9 300)
 Write-File 'data/create/recipe/pressing/sugar_cane.json' (Pressing-Json 'minecraft:sugar_cane' 'minecraft:paper' 1 200)
 
+"Millstone:"
+# Written for a shaft along z: a low basin with a ring of walls, two stone discs inside that
+# turn about the vertical axis, and the shaft through its lower part.
+$millBody = @(
+    (Elem @(1, 0, 1) @(15, 5, 15) 'casing'),
+    (Elem @(1, 5, 1) @(15, 12, 3) 'casing'),
+    (Elem @(1, 5, 13) @(15, 12, 15) 'casing'),
+    (Elem @(1, 5, 3) @(3, 12, 13) 'casing'),
+    (Elem @(13, 5, 3) @(15, 12, 13) 'casing')
+)
+$millStones = @(
+    (Elem @(3, 5, 3) @(13, 8, 13) 'stone'),
+    (Elem @(4, 8, 4) @(12, 10, 12) 'stone'),
+    (Elem @(7, 10, 7) @(9, 12, 9) 'metal')
+)
+$millShaft = @((Elem @(6, 1, 0) @(10, 5, 16) 'axle'))
+$millTextures = [ordered]@{ casing = 'create:block/dark_casing'; stone = 'minecraft:block/stone'; metal = 'create:block/drill_metal'; axle = 'create:block/steel'; particle = 'create:block/dark_casing' }
+Write-File 'assets/create/models/block/millstone_body.json' (Model $millTextures $millBody)
+Write-File 'assets/create/models/block/millstone_stones.json' (Model $millTextures $millStones)
+Write-File 'assets/create/models/block/millstone_shaft.json' (Model $millTextures $millShaft)
+Write-File 'assets/create/models/block/millstone_item.json' (Model $millTextures ($millBody + $millStones + $millShaft))
+$millBoxes = , @(0.0625, 0, 0.0625, 0.9375, 0.75, 0.9375)
+$millShapes = Shapes-Json 'axis' @('x', 'y', 'z') { param($a) $millBoxes | ForEach-Object { , $_ } }
+$millState = "    ""part"": { ""type"": ""enum"", ""values"": [""body"", ""stones"", ""shaft""] },`n$speedProp,`n$reverseProp"
+Write-File 'data/create/horizon/block/millstone.json' (Block-Json 'minecraft:oak_log' $millState '"part": "body", "speed": "0", "reverse": "false"' 3.0 6.0 $true 'minecraft:andesite' $millShapes)
+$lines = foreach ($a in 'x', 'y', 'z') { foreach ($part in 'body', 'stones', 'shaft') { foreach ($r in 'false', 'true') { foreach ($s in $speeds) {
+    $turn = if ($part -eq 'stones') { '' } else { $pressTurn[$a] }
+    "    ""axis=$a,part=$part,reverse=$r,speed=$s"": { ""model"": ""create:block/millstone_$part""$turn }"
+} } } }
+Write-File 'assets/create/blockstates/millstone.json' (Variants $lines)
+Write-File 'assets/create/items/millstone.json' (Item-Json 'millstone_item')
+
+"Milling recipes (a recipe type of the mod's own):"
+function Milling-Json([string]$ingredient, [string]$result, [int]$count, [int]$work) {
+    "{`n  ""type"": ""create:milling"",`n  ""ingredient"": ""$ingredient"",`n  ""result"": { ""id"": ""$result"", ""count"": $count },`n  ""work"": $work`n}`n"
+}
+Write-File 'data/create/recipe/milling/cobblestone.json' (Milling-Json 'minecraft:cobblestone' 'minecraft:gravel' 1 400)
+Write-File 'data/create/recipe/milling/gravel.json' (Milling-Json 'minecraft:gravel' 'minecraft:sand' 1 400)
+Write-File 'data/create/recipe/milling/bone.json' (Milling-Json 'minecraft:bone' 'minecraft:bone_meal' 3 300)
+Write-File 'data/create/recipe/milling/blaze_rod.json' (Milling-Json 'minecraft:blaze_rod' 'minecraft:blaze_powder' 2 300)
+
 "Loot tables and recipes:"
+Write-File 'data/create/loot_table/blocks/millstone.json' (Loot-Json 'millstone')
+Write-File 'data/create/recipe/millstone.json' (Recipe-Json 'millstone' @('create:large_cogwheel', 'minecraft:cobblestone', 'minecraft:cobblestone'))
 Write-File 'data/create/loot_table/blocks/mechanical_press.json' (Loot-Json 'mechanical_press')
 Write-File 'data/create/recipe/mechanical_press.json' (Recipe-Json 'mechanical_press' @('create:cogwheel', 'minecraft:iron_ingot', 'minecraft:piston'))
 foreach ($name in 'hand_crank', 'water_wheel', 'mechanical_saw', 'mechanical_harvester', 'mechanical_plough') {

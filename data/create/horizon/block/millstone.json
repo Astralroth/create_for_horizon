@@ -1,0 +1,33 @@
+{
+  "template": "minecraft:oak_log",
+  "state_properties": {
+    "part": { "type": "enum", "values": ["body", "stones", "shaft"] },
+    "speed": { "type": "enum", "values": ["0", "1", "2", "4", "8", "16", "32", "64", "128", "256"] },
+    "reverse": { "type": "boolean" }
+  },
+  "default_state": { "part": "body", "speed": "0", "reverse": "false" },
+  "properties": {
+    "hardness": 3,
+    "explosion_resistance": 6,
+    "requires_tool": true,
+    "occludes": false,
+    "render_shape": "ENTITYBLOCK_ANIMATED",
+    "sounds": "minecraft:andesite"
+  },
+  "shapes": {
+    "properties": ["axis"],
+    "values": {
+      "x": [[0.0625, 0, 0.0625, 0.9375, 0.75, 0.9375]],
+      "y": [[0.0625, 0, 0.0625, 0.9375, 0.75, 0.9375]],
+      "z": [[0.0625, 0, 0.0625, 0.9375, 0.75, 0.9375]]
+    }
+  },
+  "collision_shapes": {
+    "properties": ["axis"],
+    "values": {
+      "x": [[0.0625, 0, 0.0625, 0.9375, 0.75, 0.9375]],
+      "y": [[0.0625, 0, 0.0625, 0.9375, 0.75, 0.9375]],
+      "z": [[0.0625, 0, 0.0625, 0.9375, 0.75, 0.9375]]
+    }
+  }
+}

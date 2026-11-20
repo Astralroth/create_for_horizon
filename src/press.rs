@@ -3,7 +3,7 @@
 //! for the result of a `create:pressing` recipe. The recipes are data files of a recipe type the
 //! mod owns, read through the game's recipe table.
 use crate::engine::Pos;
-use crate::{pressing, visual, work, KEYS, PROGRESS};
+use crate::{recipes, visual, work, KEYS, PROGRESS};
 use mod_api::{
     self, BlockEntityTickEvent, BlockEntityTickReply, BlockUpdateFlags, HostTransaction,
     ItemResource, ItemStack, LevelRef, ServerHost, Tag, ITEMS,
@@ -28,10 +28,6 @@ fn below(pos: Pos) -> Pos {
 /// The first item in the container below that a recipe takes, with the recipe's result.
 fn find_job(host: &mut dyn ServerHost, level: LevelRef, pos: Pos) -> Option<Job> {
     let slots = level.capability(host, &ITEMS, below(pos), Some(mod_api::Direction::Up))?;
-    let recipes = host.recipes_of_type(RECIPE_TYPE);
-    if recipes.is_empty() {
-        return None;
-    }
     for slot in 0..slots.size(host) {
         if slots.amount(host, slot) == 0 {
             continue;
@@ -39,23 +35,7 @@ fn find_job(host: &mut dyn ServerHost, level: LevelRef, pos: Pos) -> Option<Job>
         let Some(input) = slots.resource(host, slot) else {
             continue;
         };
-        for recipe in recipes.iter() {
-            let Some(ingredient) = recipe.json.get("ingredient") else {
-                continue;
-            };
-            let Ok(Some(ingredient)) = host.recipe_ingredient(&ingredient.to_string()) else {
-                continue;
-            };
-            if !ingredient.test(&*host, input.as_stack()) {
-                continue;
-            }
-            let Some(result) = recipe.json.get("result") else {
-                continue;
-            };
-            let Ok(Some(result)) = host.recipe_result(&result.to_string()) else {
-                continue;
-            };
-            let needed = pressing::work_of(recipe.json.get("work").and_then(|work| work.as_f64()));
+        if let Some((result, needed)) = recipes::matching(&*host, RECIPE_TYPE, input.as_stack()) {
             return Some(Job {
                 slot,
                 input,

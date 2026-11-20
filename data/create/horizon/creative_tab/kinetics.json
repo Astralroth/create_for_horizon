@@ -19,6 +19,7 @@
     "create:stressometer",
     "create:depot",
     "create:mechanical_press",
+    "create:millstone",
     "create:wrench"
   ]
 }

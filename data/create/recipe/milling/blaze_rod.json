@@ -1,0 +1,6 @@
+{
+  "type": "create:milling",
+  "ingredient": "minecraft:blaze_rod",
+  "result": { "id": "minecraft:blaze_powder", "count": 2 },
+  "work": 300
+}
