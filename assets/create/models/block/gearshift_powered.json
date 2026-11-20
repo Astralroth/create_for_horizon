@@ -1,8 +1,8 @@
 {
   "textures": {
-    "core": "minecraft:block/redstone_block",
-    "axle": "minecraft:block/polished_andesite",
-    "particle": "minecraft:block/redstone_block"
+    "core": "create:block/gearshift_core_powered",
+    "axle": "create:block/steel",
+    "particle": "create:block/gearshift_core_powered"
   },
   "elements": [
     {

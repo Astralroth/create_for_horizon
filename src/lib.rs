@@ -7,18 +7,19 @@ use mod_api::{
     self, BlockEntityEvent, BlockEntityPart, BlockEntitySubmitEvent, BlockEntityTickEvent,
     BlockEntityTickReply, BlockEntityTicksEvent, BlockFace, BlockKey, BlockPart, BlockUpdateFlags,
     ClientHost, Compound, Hooks, HostBlockStates, InteractionResult, ItemKey, ItemPart,
-    OnBlockPlacedByEvent, PlayerLoggedInEvent, Registrar, RegistrationContext, ServerHost, Tag,
-    Text, UseItemOnEvent, UseWithoutItemEvent,
+    OnBlockPlacedByEvent, PlayerLoggedInEvent, Registrar, RegistrationContext, ServerHost,
+    SoundSource, Tag, Text, UseItemOnEvent, UseWithoutItemEvent,
 };
 use std::sync::OnceLock;
 
 mod direction;
 mod engine;
+mod messages;
 mod motor;
 mod visual;
 
 use direction::Direction;
-use engine::{Axis, Kind, Network, Pos, Status};
+use engine::{Axis, Kind, Pos, Status};
 
 /// How often, in game ticks, a block looks at its network again.
 const REFRESH_TICKS: i64 = 10;
@@ -30,6 +31,8 @@ const MOTOR_CAPACITY: f32 = 1024.0;
 const DRILL_IMPACT: f32 = 8.0;
 /// Turns of work, in RPM-ticks, the drill needs for each point of a block's hardness.
 const DRILL_WORK_PER_HARDNESS: f32 = 600.0;
+/// How often, in game ticks, a working drill makes its grinding sound.
+const DRILL_SOUND_TICKS: i64 = 20;
 /// The saved counter of how far the drill has got through the block in front of it.
 const PROGRESS: &str = "Progress";
 
@@ -197,6 +200,9 @@ fn refresh_signal(host: &mut dyn ServerHost, pos: Pos) -> Option<()> {
     };
     if level.block_property(host, pos, "powered").as_deref() != Some(value) {
         host.set_block_property_with(pos, "powered", value, BlockUpdateFlags::CLIENTS.bits());
+        // A click, higher when it lets go or reverses and lower when it lets up.
+        let pitch = if value == "true" { 0.8 } else { 0.7 };
+        play(host, &level, pos, "minecraft:block.lever.click", 0.5, pitch);
     }
     Some(())
 }
@@ -299,6 +305,10 @@ fn drill(host: &mut dyn ServerHost, event: &mut BlockEntityTickEvent<'_>) -> Opt
     } else {
         None
     };
+    if job.is_some() && (level.game_time(host)? + phase(pos)).rem_euclid(DRILL_SOUND_TICKS) == 0 {
+        // A low grinding while it works, once a second.
+        play(host, &level, pos, "minecraft:block.grindstone.use", 0.25, 0.9);
+    }
     let next = match job {
         Some((target, needed)) => {
             let total = done as f32 + turning as f32;
@@ -319,26 +329,25 @@ fn drill(host: &mut dyn ServerHost, event: &mut BlockEntityTickEvent<'_>) -> Opt
     Some(())
 }
 
-/// The message a click on the block at `pos` shows.
-fn describe(network: &Network, pos: Pos) -> String {
-    let blocks = network.members.len();
-    let rpm = network.member(pos).map_or(0.0, |member| member.rpm);
-    match network.status {
-        Status::Idle => format!("Create: {blocks} connected, no source, nothing turns."),
-        Status::Running => format!(
-            "Create: turning at {} RPM. Network of {blocks}, stress {:.0} of {:.0}.",
-            rpm.abs(),
-            network.stress,
-            network.capacity
-        ),
-        Status::Conflict => {
-            format!("Create: {blocks} connected, but the sources or gears disagree. Locked.")
-        }
-        Status::Overstressed => format!(
-            "Create: overstressed, {:.0} of {:.0} stress units. Nothing turns.",
-            network.stress, network.capacity
-        ),
-    }
+/// Game text for a message: its translation key with the arguments filled in.
+fn text(message: messages::Message) -> Text {
+    Text::translate(
+        message.key,
+        message.arguments.into_iter().map(Text::literal).collect(),
+    )
+}
+
+/// Plays a vanilla sound at the centre of the block at `pos`.
+fn play(
+    host: &mut dyn ServerHost,
+    level: &mod_api::LevelRef,
+    pos: Pos,
+    sound: &str,
+    volume: f32,
+    pitch: f32,
+) {
+    let at = pos.map(|coordinate| f64::from(coordinate) + 0.5);
+    let _ = level.play_sound(host, sound, at, SoundSource::Blocks, volume, pitch);
 }
 
 /// Whether a click on a machine block shows the network report: only with an empty hand.
@@ -378,12 +387,9 @@ impl BlockPart for Machine {
                     "invert",
                     if inverted { "false" } else { "true" },
                 );
-                let text = if inverted {
-                    "Creative Motor: back to its normal direction."
-                } else {
-                    "Creative Motor: reversed."
-                };
-                let _ = player.tell(host, Text::literal(text));
+                let message = messages::motor_direction(!inverted);
+                let _ = player.tell(host, text(message));
+                play(host, &level, click.pos, "minecraft:block.chain.place", 0.7, 1.3);
                 return Some(InteractionResult::SuccessServer);
             }
             host.set_block_property(click.pos, "axis", current.turned_about(face).name());
@@ -391,6 +397,7 @@ impl BlockPart for Machine {
             let current = Direction::from_name(&level.block_property(host, click.pos, "facing")?)?;
             host.set_block_property(click.pos, "facing", current.turned_about(face).name());
         }
+        play(host, &level, click.pos, "minecraft:block.chain.place", 0.7, 1.0);
         Some(InteractionResult::SuccessServer)
     }
 
@@ -417,8 +424,15 @@ impl BlockPart for Machine {
             let (rpm, invert) = motor::read(|name| level.block_property(host, click.pos, name));
             let next = motor::next(rpm);
             host.set_block_property(click.pos, "rpm", motor::name(next));
-            let direction = if invert { ", reversed" } else { "" };
-            let _ = player.tell(host, Text::literal(format!("Creative Motor: {next} RPM{direction}.")));
+            let _ = player.tell(host, text(messages::motor_speed(next, invert)));
+            play(
+                host,
+                &level,
+                click.pos,
+                "minecraft:block.lever.click",
+                0.8,
+                motor::click_pitch(next),
+            );
             return Some(InteractionResult::SuccessServer);
         }
         // A gauge reports the block it sits on; anything else reports itself.
@@ -432,11 +446,11 @@ impl BlockPart for Machine {
             let reader: &dyn mod_api::Host = host;
             engine::solve(|pos| node_at(keys, &level, reader, pos), start)
         };
-        let text = match network {
-            Some(network) => describe(&network, start),
-            None => "Create: nothing turns behind this gauge.".to_string(),
+        let message = match network {
+            Some(network) => messages::report(&network, start),
+            None => messages::Message::plain(messages::GAUGE_EMPTY),
         };
-        let _ = player.tell(host, Text::literal(text));
+        let _ = player.tell(host, text(message));
         Some(InteractionResult::SuccessServer)
     }
 }
@@ -648,7 +662,7 @@ impl Hooks for CreateMod {
     /// A player joined: say that the mod is installed.
     fn player_logged_in(&self, host: &mut dyn ServerHost, event: &mut PlayerLoggedInEvent<'_>) {
         if let Some(player) = host.player(event.player) {
-            let _ = player.tell(host, Text::literal("Create for Horizon is loaded."));
+            let _ = player.tell(host, text(messages::Message::plain(messages::LOADED)));
         }
     }
 }
@@ -656,7 +670,6 @@ impl Hooks for CreateMod {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine::{Member, solve};
 
     #[test]
     fn a_held_item_keeps_the_click() {
@@ -685,86 +698,5 @@ mod tests {
         assert_eq!(turning_axis(|_| None), None);
         // A facing nobody knows is not an axis either.
         assert_eq!(turning_axis(|name| (name == "facing").then(|| "sideways".to_string())), None);
-    }
-
-    fn line(kinds: &[Kind]) -> Network {
-        let nodes: Vec<(Pos, Kind)> = kinds
-            .iter()
-            .enumerate()
-            .map(|(x, kind)| ([x as i32, 0, 0], *kind))
-            .collect();
-        solve(
-            |pos| nodes.iter().find(|(at, _)| *at == pos).map(|(_, kind)| *kind),
-            [0, 0, 0],
-        )
-        .unwrap()
-    }
-
-    fn motor(rpm: f32) -> Kind {
-        Kind::Generator {
-            axis: Axis::X,
-            rpm,
-            capacity: MOTOR_CAPACITY,
-        }
-    }
-
-    #[test]
-    fn descriptions_name_the_state_of_the_network() {
-        let idle = line(&[Kind::Shaft { axis: Axis::X }]);
-        assert!(describe(&idle, [0, 0, 0]).contains("nothing turns"));
-
-        let running = line(&[motor(16.0), Kind::Shaft { axis: Axis::X }]);
-        let text = describe(&running, [1, 0, 0]);
-        assert!(text.contains("16 RPM"), "{text}");
-        assert!(text.contains("Network of 2"), "{text}");
-
-        let locked = line(&[motor(16.0), Kind::Shaft { axis: Axis::X }, motor(-16.0)]);
-        assert!(describe(&locked, [0, 0, 0]).contains("Locked"));
-
-        let overstressed = line(&[
-            motor(1.0),
-            Kind::Consumer {
-                axis: Axis::X,
-                impact: 5000.0,
-            },
-        ]);
-        assert!(describe(&overstressed, [0, 0, 0]).contains("overstressed"));
-    }
-
-    #[test]
-    fn a_drill_on_a_motor_shows_its_stress() {
-        let network = line(&[
-            motor(16.0),
-            Kind::Consumer {
-                axis: Axis::X,
-                impact: DRILL_IMPACT,
-            },
-        ]);
-        // 16 RPM x 8 stress units per RPM = 128 of the motor's 16384.
-        assert!(describe(&network, [1, 0, 0]).contains("stress 128 of 16384"));
-    }
-
-    #[test]
-    fn the_speed_shown_is_the_one_of_the_clicked_block() {
-        let network = Network {
-            members: vec![
-                Member {
-                    pos: [0, 0, 0],
-                    kind: Kind::Shaft { axis: Axis::X },
-                    rpm: -8.0,
-                },
-                Member {
-                    pos: [1, 0, 0],
-                    kind: Kind::Shaft { axis: Axis::X },
-                    rpm: 8.0,
-                },
-            ],
-            status: Status::Running,
-            stress: 0.0,
-            capacity: 100.0,
-        };
-        assert!(describe(&network, [0, 0, 0]).contains("8 RPM"));
-        // Direction is not part of the message, only the speed.
-        assert!(!describe(&network, [0, 0, 0]).contains('-'));
     }
 }

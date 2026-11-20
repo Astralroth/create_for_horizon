@@ -1,8 +1,8 @@
 {
   "textures": {
-    "body": "minecraft:block/copper_block",
-    "axle": "minecraft:block/polished_andesite",
-    "particle": "minecraft:block/copper_block"
+    "body": "create:block/copper_plate",
+    "axle": "create:block/steel",
+    "particle": "create:block/copper_plate"
   },
   "elements": [
     {

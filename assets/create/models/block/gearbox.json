@@ -1,8 +1,8 @@
 {
   "textures": {
-    "casing": "minecraft:block/copper_block",
-    "stub": "minecraft:block/polished_andesite",
-    "particle": "minecraft:block/copper_block"
+    "casing": "create:block/copper_plate",
+    "stub": "create:block/steel",
+    "particle": "create:block/copper_plate"
   },
   "elements": [
     {

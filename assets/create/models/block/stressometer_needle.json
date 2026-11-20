@@ -1,7 +1,7 @@
 {
   "textures": {
-    "needle": "minecraft:block/red_concrete",
-    "particle": "minecraft:block/red_concrete"
+    "needle": "create:block/needle",
+    "particle": "create:block/needle"
   },
   "elements": [
     {

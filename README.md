@@ -7,9 +7,9 @@ break blocks. This is an independent project, written from scratch as a native H
 inspired by the gameplay of the Create mod. It contains no code or assets from Create or from
 other ports.
 
-**Status: M3 of the [roadmap](ROADMAP.md).** Everything passes Horizon's own package checks and the
-unit tests. Drawing, interaction and redstone timing have not all been tried in the running game;
-see [Limitations](#limitations).
+**Status: M0 to M3 and M6 of the [roadmap](ROADMAP.md).** Everything passes Horizon's own package
+checks and the unit tests. M0 to M3 were tried in the game; the textures, sounds and Spanish
+translation of M6 have not been yet. See [Limitations](#limitations).
 
 ## Install
 
@@ -83,6 +83,11 @@ cargo test --lib               # unit tests
 `cargo horizon-mod` needs the SDK it fetches into `.horizon/` and a Rust toolchain for the pinned
 build, with the `wasm32-unknown-unknown` target.
 
+Textures are generated, not edited by hand: run
+`powershell -NoProfile -ExecutionPolicy Bypass -File tools/generate_textures.ps1` to rewrite the
+PNG files under `assets/create/textures/`. Every message has a translation key in
+`assets/create/lang/`, and a test checks that English and Spanish define the same keys.
+
 ## Limitations
 
 * **Mostly checked by tests and package checks, not in the running game.** Whether every block
@@ -93,7 +98,10 @@ build, with the `wasm32-unknown-unknown` target.
   redstone signal every tenth of a second.
 * No hand crank, water wheel or belts yet; the only source is the Creative Motor.
 * The drill breaks any breakable block in front of it, containers included, and drops the items.
-* Models use vanilla textures; the mod has no textures of its own yet.
+* The textures are simple 16x16 pixel art drawn by `tools/generate_textures.ps1`; they are
+  placeholders in spirit and not hand-painted. Sounds are vanilla's, played at the right moments
+  (wrench, motor clicks, clutch and gearshift, a grinding drill); the mod ships no audio files.
+* Messages and names are available in English and Spanish (`es_es`).
 
 ## License
 

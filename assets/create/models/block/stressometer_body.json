@@ -1,8 +1,8 @@
 {
   "textures": {
-    "body": "minecraft:block/copper_block",
-    "dial": "minecraft:block/target_side",
-    "particle": "minecraft:block/copper_block"
+    "body": "create:block/copper_plate",
+    "dial": "create:block/stressometer_dial",
+    "particle": "create:block/copper_plate"
   },
   "elements": [
     {

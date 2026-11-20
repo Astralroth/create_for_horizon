@@ -1,8 +1,8 @@
 {
   "textures": {
-    "metal": "minecraft:block/iron_block",
-    "bit": "minecraft:block/raw_iron_block",
-    "particle": "minecraft:block/iron_block"
+    "metal": "create:block/drill_metal",
+    "bit": "create:block/drill_bit",
+    "particle": "create:block/drill_metal"
   },
   "elements": [
     {

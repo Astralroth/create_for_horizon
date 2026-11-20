@@ -32,6 +32,13 @@ pub fn next(rpm: u32) -> u32 {
     }
 }
 
+/// The pitch of the click heard when the motor is set to `rpm`: low for the slowest preset and
+/// rising with each step, so the sound tells how fast the motor now is.
+pub fn click_pitch(rpm: u32) -> f32 {
+    let index = PRESETS.iter().position(|preset| *preset == rpm).unwrap_or(4);
+    0.5 + 0.15 * index as f32
+}
+
 /// The signed speed of a motor set to `rpm`: positive turns counterclockwise seen from the
 /// positive end of its axis, and `invert` flips it.
 pub fn signed(rpm: u32, invert: bool) -> f32 {
@@ -98,6 +105,16 @@ mod tests {
     fn an_unknown_speed_steps_to_the_default() {
         assert_eq!(next(0), DEFAULT_RPM);
         assert_eq!(next(24), DEFAULT_RPM);
+    }
+
+    #[test]
+    fn the_click_rises_with_each_preset_and_stays_in_the_game_range() {
+        let pitches: Vec<f32> = PRESETS.iter().map(|rpm| click_pitch(*rpm)).collect();
+        assert!(pitches.windows(2).all(|pair| pair[1] > pair[0]), "{pitches:?}");
+        // The game clamps pitch to 0.5 .. 2.0.
+        assert!(pitches.iter().all(|pitch| (0.5..=2.0).contains(pitch)));
+        // An unknown speed gets a middle pitch rather than failing.
+        assert_eq!(click_pitch(3), click_pitch(DEFAULT_RPM));
     }
 
     #[test]

@@ -1,8 +1,8 @@
 {
   "textures": {
-    "body": "minecraft:block/polished_andesite",
-    "dial": "minecraft:block/target_top",
-    "particle": "minecraft:block/polished_andesite"
+    "body": "create:block/gauge_body",
+    "dial": "create:block/speedometer_dial",
+    "particle": "create:block/gauge_body"
   },
   "elements": [
     {

@@ -19,8 +19,9 @@ Not yet tried in the game: the drill, and rotation drawing unless already confir
 
 ## Where things stand
 
-M0 to M3 are built and pushed. They pass `cargo horizon-mod check`, the build, the registry check
-and the unit tests, but they are waiting for their first run in the game. The test list under each
+M0 to M3 are built and were tried in the game ("works well"). M6 (look and sound) was built next, at
+the user's request, ahead of M4 and M5; it passes `cargo horizon-mod check`, the build, the registry
+check and the unit tests, and is waiting for its first run in the game. The test list under each
 milestone says what to try.
 
 ## M1 · Adjustable motor ◆ — built
@@ -84,15 +85,23 @@ Machines that use the stress, in the style of the drill (they act on blocks, no 
 
 Risk: medium. Test: a motor, a gear train and two machines at once, watching overstress stop them.
 
-## M6 · Look and sound ◆
+## M6 · Look and sound ◆ — built (done before M4 and M5, at the user's request)
 
 The mod stops borrowing vanilla textures.
 
-- Own textures for every block and item, generated as small pixel-art PNGs.
-- Sounds for the motor, the drill and the wrench; particles on drilling.
-- Spanish and other translations.
+- Own textures for every block and the wrench, drawn from code by `tools/generate_textures.ps1`
+  (steel, wood, copper, dials, needle, clutch and gearshift cores, drill parts, the wrench icon).
+- Sounds: vanilla sound events at the right moments (wrench, a motor click whose pitch rises with
+  the speed, clutch and gearshift, a grinding drill). No audio files of its own yet.
+- Spanish translation (`es_es`), and every message is now a translation key with arguments, so a
+  test can check that both languages define the same keys.
 
-Risk: low for correctness, high for taste. Test: just look.
+Not done: hand-painted textures, custom audio, and particles beyond the game's own when a block
+breaks.
+
+Risk: low for correctness, high for taste. Test: look at every block and item in the creative tab,
+including powered clutch and gearshift and a gauge's dial; switch the game to Spanish and check the
+names and the click report; listen to the wrench, the motor clicks and a working drill.
 
 ## M7 · Items on machines (needs research)
 

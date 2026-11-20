@@ -10,5 +10,15 @@
   "block.create.clutch": "Clutch",
   "block.create.gearshift": "Gearshift",
   "item.create.wrench": "Wrench",
-  "itemGroup.create.kinetics": "Create for Horizon"
+  "itemGroup.create.kinetics": "Create for Horizon",
+  "create.report.idle": "Create: %1$s connected, no source, nothing turns.",
+  "create.report.running": "Create: turning at %1$s RPM. Network of %2$s, stress %3$s of %4$s.",
+  "create.report.locked": "Create: %1$s connected, but the sources or gears disagree. Locked.",
+  "create.report.overstressed": "Create: overstressed, %1$s of %2$s stress units. Nothing turns.",
+  "create.report.gauge_empty": "Create: nothing turns behind this gauge.",
+  "create.motor.speed": "Creative Motor: %1$s RPM.",
+  "create.motor.speed_reversed": "Creative Motor: %1$s RPM, reversed.",
+  "create.motor.reversed": "Creative Motor: reversed.",
+  "create.motor.normal": "Creative Motor: back to its normal direction.",
+  "create.loaded": "Create for Horizon is loaded."
 }

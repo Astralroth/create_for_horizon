@@ -1,7 +1,7 @@
 {
   "textures": {
-    "body": "minecraft:block/polished_deepslate",
-    "particle": "minecraft:block/polished_deepslate"
+    "body": "create:block/dark_casing",
+    "particle": "create:block/dark_casing"
   },
   "elements": [
     {

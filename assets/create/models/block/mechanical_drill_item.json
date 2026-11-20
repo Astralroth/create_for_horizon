@@ -1,9 +1,9 @@
 {
   "textures": {
-    "body": "minecraft:block/polished_deepslate",
-    "metal": "minecraft:block/iron_block",
-    "bit": "minecraft:block/raw_iron_block",
-    "particle": "minecraft:block/polished_deepslate"
+    "body": "create:block/dark_casing",
+    "metal": "create:block/drill_metal",
+    "bit": "create:block/drill_bit",
+    "particle": "create:block/dark_casing"
   },
   "elements": [
     {

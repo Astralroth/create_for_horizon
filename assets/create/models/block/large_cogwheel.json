@@ -1,8 +1,8 @@
 {
   "textures": {
-    "disc": "minecraft:block/oak_planks",
-    "axle": "minecraft:block/polished_andesite",
-    "particle": "minecraft:block/oak_planks"
+    "disc": "create:block/wood_cog",
+    "axle": "create:block/steel",
+    "particle": "create:block/wood_cog"
   },
   "elements": [
     {
