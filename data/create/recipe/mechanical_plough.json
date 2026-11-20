@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": ["create:cogwheel", "minecraft:iron_hoe", "minecraft:iron_ingot"],
+  "result": { "id": "create:mechanical_plough" }
+}

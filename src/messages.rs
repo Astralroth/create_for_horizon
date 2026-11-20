@@ -12,11 +12,13 @@ pub const MOTOR_SPEED: &str = "create.motor.speed";
 pub const MOTOR_SPEED_REVERSED: &str = "create.motor.speed_reversed";
 pub const MOTOR_REVERSED: &str = "create.motor.reversed";
 pub const MOTOR_NORMAL: &str = "create.motor.normal";
+pub const WHEEL_REVERSED: &str = "create.wheel.reversed";
+pub const WHEEL_NORMAL: &str = "create.wheel.normal";
 pub const LOADED: &str = "create.loaded";
 
 /// Every translation key the messages use. A test checks each one against the language files.
 #[cfg(test)]
-pub const KEYS: [&str; 10] = [
+pub const KEYS: [&str; 12] = [
     REPORT_IDLE,
     REPORT_RUNNING,
     REPORT_LOCKED,
@@ -26,6 +28,8 @@ pub const KEYS: [&str; 10] = [
     MOTOR_SPEED_REVERSED,
     MOTOR_REVERSED,
     MOTOR_NORMAL,
+    WHEEL_REVERSED,
+    WHEEL_NORMAL,
     LOADED,
 ];
 
@@ -82,6 +86,11 @@ pub fn motor_speed(rpm: u32, inverted: bool) -> Message {
 /// What the motor says after the wrench flipped its direction; `inverted` is the new state.
 pub fn motor_direction(inverted: bool) -> Message {
     Message::plain(if inverted { MOTOR_REVERSED } else { MOTOR_NORMAL })
+}
+
+/// What the wheel says after the wrench flipped its direction; `inverted` is the new state.
+pub fn wheel_direction(inverted: bool) -> Message {
+    Message::plain(if inverted { WHEEL_REVERSED } else { WHEEL_NORMAL })
 }
 
 #[cfg(test)]
@@ -172,6 +181,13 @@ mod tests {
         assert_eq!(motor_direction(true).key, MOTOR_REVERSED);
         assert_eq!(motor_direction(false).key, MOTOR_NORMAL);
         assert!(motor_direction(true).arguments.is_empty());
+    }
+
+    #[test]
+    fn the_wheel_messages_name_the_direction() {
+        assert_eq!(wheel_direction(true).key, WHEEL_REVERSED);
+        assert_eq!(wheel_direction(false).key, WHEEL_NORMAL);
+        assert!(wheel_direction(true).arguments.is_empty());
     }
 
     /// The keys a language file defines, read from its `"key": "value"` lines.

@@ -172,6 +172,37 @@ Draw-Core 'clutch_core_powered' @(206, 44, 40) 30
 Draw-Core 'gearshift_core' @(228, 190, 70) 18
 Draw-Core 'gearshift_core_powered' @(222, 70, 40) 28
 
+# Saw blade: bright steel with a row of dark teeth along the edges.
+$c = New-Canvas; $r = Seed 'saw_blade'
+for ($y = 0; $y -lt 16; $y++) { for ($x = 0; $x -lt 16; $x++) {
+    $b = 196 + @(0, 6, -4, 3)[$x % 4]
+    Put $c $x $y ($b - 6) $b ($b + 6)
+} }
+Noise $c $r 4
+foreach ($i in 0..15) { if (($i % 3) -eq 0) { Shade $c $i 0 -70; Shade $c $i 15 -70; Shade $c 0 $i -70; Shade $c 15 $i -70 } else { Shade $c $i 0 -24; Shade $c $i 15 -24 } }
+foreach ($y in 6..9) { Shade $c 7 $y -30; Shade $c 8 $y -30 }
+Save-Canvas $c $blockDir 'saw_blade'
+
+# Harvester blade: green-tinted steel with a bright cutting edge on one side.
+$c = New-Canvas; $r = Seed 'harvester_blade'
+for ($y = 0; $y -lt 16; $y++) { for ($x = 0; $x -lt 16; $x++) {
+    $band = @(0, 8, -6, 4)[$y % 4]
+    Put $c $x $y (96 + $band) (152 + $band) (98 + $band)
+} }
+Noise $c $r 5
+foreach ($x in 0..15) { Shade $c $x 0 40; Shade $c $x 1 18; Shade $c $x 15 -34 }
+Save-Canvas $c $blockDir 'harvester_blade'
+
+# Plough share: dark iron with a rusty brown wash and vertical grooves.
+$c = New-Canvas; $r = Seed 'plough_share'
+for ($y = 0; $y -lt 16; $y++) { for ($x = 0; $x -lt 16; $x++) {
+    $g = if (($x % 4) -eq 0) { -22 } else { 0 }
+    Put $c $x $y (122 + $g) (98 + $g) (76 + $g)
+} }
+Noise $c $r 7
+Border $c -30 18
+Save-Canvas $c $blockDir 'plough_share'
+
 "Items:"
 # The wrench: a steel handle running down-left and an open jaw at the top right.
 $c = New-Canvas

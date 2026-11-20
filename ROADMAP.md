@@ -20,9 +20,11 @@ Not yet tried in the game: the drill, and rotation drawing unless already confir
 ## Where things stand
 
 M0 to M3 are built and were tried in the game ("works well"). M6 (look and sound) was built next, at
-the user's request, ahead of M4 and M5; it passes `cargo horizon-mod check`, the build, the registry
-check and the unit tests, and is waiting for its first run in the game. The test list under each
-milestone says what to try.
+the user's request, ahead of M4 and M5, and its look and the M3 blocks were tried again through
+Agent Control (motor, shafts, wrench, cogs, drill, gauges, clutch, gearshift, gearbox); the
+sneak-click on the motor, Spanish and the sounds were not. M4 and M5 are built last: they pass
+`cargo horizon-mod check`, the build and the unit tests and are waiting for their first run in the
+game. The test list under each milestone says what to try.
 
 ## M1 · Adjustable motor ◆ — built
 
@@ -64,23 +66,30 @@ is not. Test: turn a corner with a gearbox and check the direction after it; fee
 clutch with a lever beside it and watch it stop and start; reverse a line with a gearshift; put two
 reversed gearshifts in a row and confirm they cancel.
 
-## M4 · More sources
+## M4 · More sources — built, not tried in the game
 
 Ways to make power other than the Creative Motor.
 
-- **Hand Crank**: a player holds use to spin it, giving a short burst of speed.
-- **Water Wheel**: speed from the flowing water around it.
-- A source's capacity follows its speed, so several sources add up and must agree.
+- **Hand Crank**: right click with an empty hand gives it four steps of charge (five ticks each) at
+  32 RPM, so holding the use button, which repeats the click, keeps it turning. Sneak reads the
+  network instead.
+- **Water Wheel**: 4 RPM for each of the four sides across its axis with flowing (not source) water
+  against it, up to 16 RPM; the Wrench on an end reverses it. It does not read the current's
+  direction.
+- Both carry 256 stress units per RPM; at rest they are plain joints, so a network passes through
+  them. A source's capacity follows its speed, so several sources add up and must agree.
 
 Risk: medium (water flow needs reading fluid states). Test: crank a drill into rock; place a wheel
 in a stream and check the speed.
 
-## M5 · More machines ◆
+## M5 · More machines ◆ — built, not tried in the game
 
-Machines that use the stress, in the style of the drill (they act on blocks, no inventories).
+Machines that use the stress, in the style of the drill (they act on blocks, no inventories). They
+share the drill's casing, orientation, wrench rules and progress counter (`src/work.rs`).
 
-- **Mechanical Saw**: fells logs in front of it. **Mechanical Harvester**: reaps crops.
-- **Mechanical Plough**: tills ground in front of it.
+- **Mechanical Saw** (12 stress units per RPM): fells the log in front of it, one block at a time.
+  **Mechanical Harvester** (6): reaps a ripe crop and plants it again. **Mechanical Plough** (6):
+  tills dirt, grass or path into farmland when there is room above.
 - Each has an impact, a work time and the same orientation and wrench rules as the drill.
 
 Risk: medium. Test: a motor, a gear train and two machines at once, watching overstress stop them.

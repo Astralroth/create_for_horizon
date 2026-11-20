@@ -10,16 +10,20 @@ use mod_api::{
     OnBlockPlacedByEvent, PlayerLoggedInEvent, Registrar, RegistrationContext, ServerHost,
     SoundSource, Tag, Text, UseItemOnEvent, UseWithoutItemEvent,
 };
+use mod_api::{BlockMetadata, BlockState};
 use std::sync::OnceLock;
 
 mod direction;
 mod engine;
 mod messages;
 mod motor;
+mod sources;
 mod visual;
+mod work;
 
 use direction::Direction;
 use engine::{Axis, Kind, Pos, Status};
+use work::Worker;
 
 /// How often, in game ticks, a block looks at its network again.
 const REFRESH_TICKS: i64 = 10;
@@ -27,13 +31,9 @@ const REFRESH_TICKS: i64 = 10;
 const SIGNAL_TICKS: i64 = 2;
 /// Stress units the Creative Motor carries for every RPM it turns at (16 RPM carries 16384).
 const MOTOR_CAPACITY: f32 = 1024.0;
-/// Stress units the drill uses for every RPM it turns at.
-const DRILL_IMPACT: f32 = 8.0;
-/// Turns of work, in RPM-ticks, the drill needs for each point of a block's hardness.
-const DRILL_WORK_PER_HARDNESS: f32 = 600.0;
-/// How often, in game ticks, a working drill makes its grinding sound.
-const DRILL_SOUND_TICKS: i64 = 20;
-/// The saved counter of how far the drill has got through the block in front of it.
+/// How often, in game ticks, a working machine makes its sound.
+const WORK_SOUND_TICKS: i64 = 20;
+/// The saved counter of how far a machine has got through the job in front of it.
 const PROGRESS: &str = "Progress";
 
 /// Block and item keys, resolved once at registration.
@@ -43,11 +43,20 @@ struct Keys {
     small_cogwheel: BlockKey,
     large_cogwheel: BlockKey,
     drill: BlockKey,
+    saw: BlockKey,
+    harvester: BlockKey,
+    plough: BlockKey,
+    crank: BlockKey,
+    wheel: BlockKey,
     speedometer: BlockKey,
     stressometer: BlockKey,
     gearbox: BlockKey,
     clutch: BlockKey,
     gearshift: BlockKey,
+    /// Vanilla water, which turns the wheel.
+    water: BlockKey,
+    /// Vanilla farmland, which the plough makes.
+    farmland: BlockKey,
     wrench: ItemKey,
 }
 
@@ -63,11 +72,42 @@ fn axis_from(value: &str) -> Option<Axis> {
 }
 
 impl Keys {
-    /// What a block of this kind does in a network, turning about `axis`. `motor_rpm` is the
-    /// signed speed a Creative Motor is set to, and `powered` whether a clutch or gearshift has
-    /// a redstone signal; other blocks ignore them.
-    fn kind_of(&self, block: BlockKey, axis: Axis, motor_rpm: f32, powered: bool) -> Option<Kind> {
-        if block == self.gearbox {
+    /// The machine a block is, when it is one that works on the block it faces.
+    fn worker(&self, block: BlockKey) -> Option<Worker> {
+        if block == self.drill {
+            Some(Worker::Drill)
+        } else if block == self.saw {
+            Some(Worker::Saw)
+        } else if block == self.harvester {
+            Some(Worker::Harvester)
+        } else if block == self.plough {
+            Some(Worker::Plough)
+        } else {
+            None
+        }
+    }
+
+    /// What a block of this kind does in a network, turning about `axis`. `source_rpm` is the
+    /// signed speed a source block (motor, crank or wheel) has right now, and `powered` whether
+    /// a clutch or gearshift has a redstone signal; other blocks ignore them.
+    fn kind_of(&self, block: BlockKey, axis: Axis, source_rpm: f32, powered: bool) -> Option<Kind> {
+        if let Some(worker) = self.worker(block) {
+            Some(Kind::Consumer {
+                axis,
+                impact: worker.impact(),
+            })
+        } else if block == self.crank || block == self.wheel {
+            // A small source: at rest it is only a joint, so the network still passes through.
+            Some(if source_rpm == 0.0 {
+                Kind::Shaft { axis }
+            } else {
+                Kind::Generator {
+                    axis,
+                    rpm: source_rpm,
+                    capacity: sources::CAPACITY_PER_RPM,
+                }
+            })
+        } else if block == self.gearbox {
             Some(Kind::Gearbox { axis })
         } else if block == self.clutch {
             // A powered clutch lets go.
@@ -86,18 +126,13 @@ impl Keys {
         } else if block == self.motor {
             Some(Kind::Generator {
                 axis,
-                rpm: motor_rpm,
+                rpm: source_rpm,
                 capacity: MOTOR_CAPACITY,
             })
         } else if block == self.small_cogwheel {
             Some(Kind::Cog { axis, large: false })
         } else if block == self.large_cogwheel {
             Some(Kind::Cog { axis, large: true })
-        } else if block == self.drill {
-            Some(Kind::Consumer {
-                axis,
-                impact: DRILL_IMPACT,
-            })
         } else {
             None
         }
@@ -111,6 +146,11 @@ impl Keys {
             "create:cogwheel" => Some(self.small_cogwheel),
             "create:large_cogwheel" => Some(self.large_cogwheel),
             "create:mechanical_drill" => Some(self.drill),
+            "create:mechanical_saw" => Some(self.saw),
+            "create:mechanical_harvester" => Some(self.harvester),
+            "create:mechanical_plough" => Some(self.plough),
+            "create:hand_crank" => Some(self.crank),
+            "create:water_wheel" => Some(self.wheel),
             "create:speedometer" => Some(self.speedometer),
             "create:stressometer" => Some(self.stressometer),
             "create:clutch" => Some(self.clutch),
@@ -165,15 +205,45 @@ fn node_at(
 ) -> Option<Kind> {
     let block = level.block(host, pos)?;
     let axis = turning_axis(|name| level.block_property(host, pos, name))?;
-    let motor_rpm = if block == keys.motor {
+    let inverted = level.block_property(host, pos, "invert").as_deref() == Some("true");
+    let source_rpm = if block == keys.motor {
         let (rpm, invert) = motor::read(|name| level.block_property(host, pos, name));
         motor::signed(rpm, invert)
+    } else if block == keys.crank {
+        let charge = level
+            .block_property(host, pos, "charge")
+            .and_then(|value| sources::charge_from(&value))
+            .unwrap_or(0);
+        sources::crank_rpm(charge)
+    } else if block == keys.wheel {
+        sources::wheel_rpm(flowing_sides(keys, level, host, pos, axis), inverted)
     } else {
         0.0
     };
     let powered = (block == keys.clutch || block == keys.gearshift)
         && level.block_property(host, pos, "powered").as_deref() == Some("true");
-    keys.kind_of(block, axis, motor_rpm, powered)
+    keys.kind_of(block, axis, source_rpm, powered)
+}
+
+/// How many of the four sides of a wheel turning about `axis` have flowing water against them.
+fn flowing_sides(
+    keys: &Keys,
+    level: &mod_api::LevelRef,
+    host: &dyn mod_api::Host,
+    pos: Pos,
+    axis: Axis,
+) -> usize {
+    Direction::ALL
+        .into_iter()
+        .filter(|direction| direction.axis() != axis)
+        .filter(|direction| {
+            let side = direction.step(pos);
+            level.block(host, side) == Some(keys.water)
+                && level
+                    .fluid_state(host, side)
+                    .is_some_and(|fluid| !fluid.is_empty() && !fluid.is_source())
+        })
+        .count()
 }
 
 /// The tick offset that spreads the blocks' periodic work out, so they do not all look at once.
@@ -268,63 +338,179 @@ fn refresh_gauge(
     Some(())
 }
 
-/// How many RPM-ticks of work the drill at `pos` has done on the block in front of it, and the
-/// work that block needs, or `None` when it cannot be drilled.
-fn drill_job(
+/// What a machine does to the block in front of it when its job is done.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Deed {
+    /// Break it and let it drop its items.
+    Break,
+    /// Break a ripe crop and plant it again, young.
+    Harvest,
+    /// Turn it into farmland.
+    Till,
+}
+
+/// The job a machine has in front of it: the block, the work it takes and what is done to it.
+struct Job {
+    target: Pos,
+    needed: f32,
+    deed: Deed,
+}
+
+/// The job the machine at `pos` has on the block in front of it, or `None` when that block is
+/// nothing this machine works on.
+fn job_for(
     host: &dyn mod_api::Host,
     level: &mod_api::LevelRef,
+    worker: Worker,
     pos: Pos,
-) -> Option<(Pos, f32)> {
+) -> Option<Job> {
     let facing = Direction::from_name(&level.block_property(host, pos, "facing")?)?;
     let target = facing.step(pos);
     let states = host.block_states();
     let state = level.block_state(host, target)?;
-    let hardness = states.destroy_speed(state)?;
+    let name = states.name(level.block(host, target)?).ok()?;
     // A negative hardness cannot be broken (bedrock); replaceable blocks are air, fluids and
-    // plants, which there is nothing to drill.
-    if hardness < 0.0 || states.replaceable(state)? {
-        return None;
+    // plants, which a drill or saw has nothing to work on.
+    let breakable = |states: &mod_api::BlockStates<'_>| {
+        let hardness = states.destroy_speed(state)?;
+        (hardness >= 0.0 && !states.replaceable(state)?).then_some(hardness)
+    };
+    match worker {
+        Worker::Drill => Some(Job {
+            target,
+            needed: work::drill_work(breakable(&states)?),
+            deed: Deed::Break,
+        }),
+        Worker::Saw => {
+            if !work::is_log(name) {
+                return None;
+            }
+            Some(Job {
+                target,
+                needed: work::saw_work(breakable(&states)?),
+                deed: Deed::Break,
+            })
+        }
+        Worker::Harvester => {
+            let age = level.block_property(host, target, "age")?.parse::<u32>().ok()?;
+            work::is_ripe(name, age).then_some(Job {
+                target,
+                needed: work::HARVEST_WORK,
+                deed: Deed::Harvest,
+            })
+        }
+        Worker::Plough => {
+            // Only with room above: farmland under a block is a waste.
+            let above = level.block_state(host, Direction::Up.step(target))?;
+            (work::tills_to_farmland(name) && states.replaceable(above)?).then_some(Job {
+                target,
+                needed: work::PLOUGH_WORK,
+                deed: Deed::Till,
+            })
+        }
     }
-    Some((target, hardness.max(0.5) * DRILL_WORK_PER_HARDNESS))
 }
 
-/// One tick of a drill: it works while it turns, and breaks the block in front once it has done
-/// the work that block needs.
-fn drill(host: &mut dyn ServerHost, event: &mut BlockEntityTickEvent<'_>) -> Option<()> {
+/// Does the finished job to the block in front of a machine.
+fn do_deed(host: &mut dyn ServerHost, level: &mod_api::LevelRef, keys: &Keys, job: &Job) {
+    let flags = BlockUpdateFlags::NEIGHBORS | BlockUpdateFlags::CLIENTS;
+    match job.deed {
+        Deed::Break => {
+            let _ = level.destroy_block(host, job.target, true, None, false);
+        }
+        Deed::Harvest => {
+            // The young plant is worked out first: once the crop is broken there is nothing to
+            // read its kind from.
+            let young = {
+                let reader: &dyn mod_api::Host = host;
+                level
+                    .block_state(reader, job.target)
+                    .and_then(|state| state.with(&reader.block_states(), "age", "0").ok())
+            };
+            let _ = level.destroy_block(host, job.target, true, None, false);
+            if let Some(young) = young {
+                let _ = level.set_block(host, job.target, young, flags);
+            }
+        }
+        Deed::Till => {
+            let farmland = {
+                let reader: &dyn mod_api::Host = host;
+                BlockState::of(&reader.block_states(), keys.farmland, &[]).ok()
+            };
+            if let Some(farmland) = farmland {
+                let _ = level.set_block(host, job.target, farmland, flags);
+                play(host, level, job.target, "minecraft:item.hoe.till", 0.8, 1.0);
+            }
+        }
+    }
+}
+
+/// A machine's sound while it works.
+fn work_sound(worker: Worker) -> (&'static str, f32) {
+    match worker {
+        // A low grinding for the drill, higher for the saw's blade.
+        Worker::Drill => ("minecraft:block.grindstone.use", 0.9),
+        Worker::Saw => ("minecraft:block.grindstone.use", 1.4),
+        Worker::Harvester => ("minecraft:block.grass.hit", 0.8),
+        Worker::Plough => ("minecraft:block.gravel.hit", 0.8),
+    }
+}
+
+/// One tick of a machine that works on the block in front of it: it works while it turns, and
+/// does its deed once it has done the work that block needs.
+fn work(host: &mut dyn ServerHost, event: &mut BlockEntityTickEvent<'_>) -> Option<()> {
     let done = match event.entity.nbt.get(&PROGRESS.into()) {
         Some(Tag::Int(value)) => *value,
-        // Not a drill: only a drill has the counter.
+        // Not a machine: only the ones that work have the counter.
         _ => return Some(()),
     };
+    let keys = KEYS.get()?;
     let pos = event.pos;
     let level = host.level(&host.dimension())?;
+    let worker = keys.worker(level.block(host, pos)?)?;
     let turning = visual::level_from_name(&level.block_property(host, pos, "speed")?)?;
     let job = if turning > 0 {
         let reader: &dyn mod_api::Host = host;
-        drill_job(reader, &level, pos)
+        job_for(reader, &level, worker, pos)
     } else {
         None
     };
-    if job.is_some() && (level.game_time(host)? + phase(pos)).rem_euclid(DRILL_SOUND_TICKS) == 0 {
-        // A low grinding while it works, once a second.
-        play(host, &level, pos, "minecraft:block.grindstone.use", 0.25, 0.9);
+    if job.is_some() && (level.game_time(host)? + phase(pos)).rem_euclid(WORK_SOUND_TICKS) == 0 {
+        let (sound, pitch) = work_sound(worker);
+        play(host, &level, pos, sound, 0.25, pitch);
     }
-    let next = match job {
-        Some((target, needed)) => {
-            let total = done as f32 + turning as f32;
-            if total >= needed {
-                let _ = level.destroy_block(host, target, true, None, false);
-                0
-            } else {
-                total as i32
+    let next = match &job {
+        Some(job) => {
+            let (next, finished) = work::advance(done, turning, job.needed);
+            if finished {
+                do_deed(host, &level, keys, job);
             }
+            next
         }
-        // Idle, stopped or nothing to drill: the progress is lost.
+        // Idle, stopped or nothing to work on: the progress is lost.
         None => 0,
     };
     if next != done {
         event.entity.nbt.insert(PROGRESS.into(), Tag::Int(next));
         *event.reply = BlockEntityTickReply::Changed;
+    }
+    Some(())
+}
+
+/// Lets a charged hand crank run down one step at a time.
+fn cool_crank(host: &mut dyn ServerHost, pos: Pos) -> Option<()> {
+    let keys = KEYS.get()?;
+    let level = host.level(&host.dimension())?;
+    if (level.game_time(host)? + phase(pos)).rem_euclid(sources::CHARGE_STEP_TICKS) != 0 {
+        return Some(());
+    }
+    if level.block(host, pos)? != keys.crank {
+        return Some(());
+    }
+    let charge = sources::charge_from(&level.block_property(host, pos, "charge")?)?;
+    if charge > 0 {
+        let cooled = sources::charge_name(sources::cooled(charge));
+        host.set_block_property_with(pos, "charge", cooled, BlockUpdateFlags::CLIENTS.bits());
     }
     Some(())
 }
@@ -378,8 +564,10 @@ impl BlockPart for Machine {
         let face = Axis::of_face(click.hit.face)?;
         if let Some(current) = level.block_property(host, click.pos, "axis") {
             let current = axis_from(&current)?;
-            if level.block(host, click.pos)? == keys.motor && face == current {
-                // The wrench on a shaft end of the motor reverses it instead of turning it.
+            let block = level.block(host, click.pos)?;
+            if (block == keys.motor || block == keys.wheel) && face == current {
+                // The wrench on a shaft end of the motor or the wheel reverses it instead of
+                // turning it.
                 let inverted =
                     level.block_property(host, click.pos, "invert").as_deref() == Some("true");
                 host.set_block_property(
@@ -387,7 +575,11 @@ impl BlockPart for Machine {
                     "invert",
                     if inverted { "false" } else { "true" },
                 );
-                let message = messages::motor_direction(!inverted);
+                let message = if block == keys.wheel {
+                    messages::wheel_direction(!inverted)
+                } else {
+                    messages::motor_direction(!inverted)
+                };
                 let _ = player.tell(host, text(message));
                 play(host, &level, click.pos, "minecraft:block.chain.place", 0.7, 1.3);
                 return Some(InteractionResult::SuccessServer);
@@ -417,9 +609,20 @@ impl BlockPart for Machine {
         let keys = KEYS.get()?;
         let player = host.player(click.player)?;
         let level = player.level(host)?;
-        if level.block(host, click.pos)? == keys.motor
-            && player.is_secondary_use_active(host) == Some(true)
-        {
+        let sneaking = player.is_secondary_use_active(host) == Some(true);
+        if level.block(host, click.pos)? == keys.crank && !sneaking {
+            // Turning the crank: a full charge, which wears off a step at a time. The use button
+            // repeats while it is held, so holding it keeps the crank turning.
+            host.set_block_property_with(
+                click.pos,
+                "charge",
+                sources::charge_name(sources::CHARGE_MAX),
+                BlockUpdateFlags::CLIENTS.bits(),
+            );
+            play(host, &level, click.pos, "minecraft:block.wooden_button.click_on", 0.6, 1.2);
+            return Some(InteractionResult::SuccessServer);
+        }
+        if level.block(host, click.pos)? == keys.motor && sneaking {
             // Sneaking on the motor steps its speed through the presets.
             let (rpm, invert) = motor::read(|name| level.block_property(host, click.pos, name));
             let next = motor::next(rpm);
@@ -492,13 +695,21 @@ impl BlockPart for Kinetic {}
 
 #[mod_api::horizon_part]
 impl BlockEntityPart for Kinetic {
-    /// A drill keeps a counter of its progress; every other block has no saved data.
+    /// A machine that works on the block in front keeps a counter of its progress; every other
+    /// block has no saved data.
     fn block_entity(
         &self,
         _: mod_api::LevelSide,
         event: &mut BlockEntityEvent<'_>,
     ) -> Option<Compound> {
-        (event.block == "create:mechanical_drill").then(|| {
+        matches!(
+            event.block,
+            "create:mechanical_drill"
+                | "create:mechanical_saw"
+                | "create:mechanical_harvester"
+                | "create:mechanical_plough"
+        )
+        .then(|| {
             let mut data = Compound::new();
             data.insert(PROGRESS.into(), Tag::Int(0));
             data
@@ -510,12 +721,13 @@ impl BlockEntityPart for Kinetic {
     }
 
     fn block_entity_tick(&self, host: &mut dyn ServerHost, event: &mut BlockEntityTickEvent<'_>) {
-        // Only the drill edits saved data, and then it says so, so the chunk is not marked
-        // dirty by a block that is only turning.
+        // Only the machines that work edit saved data, and then they say so, so the chunk is not
+        // marked dirty by a block that is only turning.
         *event.reply = BlockEntityTickReply::Unchanged;
         let _ = refresh_signal(host, event.pos);
+        let _ = cool_crank(host, event.pos);
         let _ = refresh(host, event.pos);
-        let _ = drill(host, event);
+        let _ = work(host, event);
     }
 
     fn block_entity_submit(&self, host: &dyn ClientHost, event: &mut BlockEntitySubmitEvent<'_>) {
@@ -556,8 +768,22 @@ impl BlockEntityPart for Kinetic {
             draw.pop();
             return;
         }
-        if block == keys.drill {
-            // The body stays still and the head turns about the drill's axis.
+        if block == keys.crank {
+            // The whole crank turns about the axis it faces along.
+            let Some(facing) = property("facing") else {
+                return;
+            };
+            let Some(direction) = Direction::from_name(facing) else {
+                return;
+            };
+            draw.push();
+            draw.rotate_about(axis_vector(direction.axis()), degrees, [0.5; 3]);
+            draw.block(block, &[("facing", facing)]);
+            draw.pop();
+            return;
+        }
+        if keys.worker(block).is_some() {
+            // The body stays still and the head turns about the machine's axis.
             let Some(facing) = property("facing") else {
                 return;
             };
@@ -612,11 +838,18 @@ impl Hooks for CreateMod {
             small_cogwheel: registrar.block_key("create:cogwheel"),
             large_cogwheel: registrar.block_key("create:large_cogwheel"),
             drill: registrar.block_key("create:mechanical_drill"),
+            saw: registrar.block_key("create:mechanical_saw"),
+            harvester: registrar.block_key("create:mechanical_harvester"),
+            plough: registrar.block_key("create:mechanical_plough"),
+            crank: registrar.block_key("create:hand_crank"),
+            wheel: registrar.block_key("create:water_wheel"),
             speedometer: registrar.block_key("create:speedometer"),
             stressometer: registrar.block_key("create:stressometer"),
             gearbox: registrar.block_key("create:gearbox"),
             clutch: registrar.block_key("create:clutch"),
             gearshift: registrar.block_key("create:gearshift"),
+            water: registrar.block_key("minecraft:water"),
+            farmland: registrar.block_key("minecraft:farmland"),
             wrench: registrar.item_key("create:wrench"),
         };
         for block in [
@@ -625,6 +858,11 @@ impl Hooks for CreateMod {
             keys.small_cogwheel,
             keys.large_cogwheel,
             keys.drill,
+            keys.saw,
+            keys.harvester,
+            keys.plough,
+            keys.crank,
+            keys.wheel,
             keys.speedometer,
             keys.stressometer,
             keys.gearbox,
@@ -641,6 +879,11 @@ impl Hooks for CreateMod {
                 "cogwheel",
                 "large_cogwheel",
                 "mechanical_drill",
+                "mechanical_saw",
+                "mechanical_harvester",
+                "mechanical_plough",
+                "hand_crank",
+                "water_wheel",
                 "speedometer",
                 "stressometer",
                 "clutch",
@@ -650,9 +893,20 @@ impl Hooks for CreateMod {
         registrar
             .block_entity_part(&kinetic, Kinetic)
             .expect("kinetic is a native block entity type");
-        let drill_item = registrar.item_key("create:mechanical_drill");
-        registrar.item_part(drill_item, FacesWherePlacerLooks);
-        for name in ["create:speedometer", "create:stressometer"] {
+        for name in [
+            "create:mechanical_drill",
+            "create:mechanical_saw",
+            "create:mechanical_harvester",
+            "create:mechanical_plough",
+        ] {
+            let machine_item = registrar.item_key(name);
+            registrar.item_part(machine_item, FacesWherePlacerLooks);
+        }
+        for name in [
+            "create:speedometer",
+            "create:stressometer",
+            "create:hand_crank",
+        ] {
             let gauge_item = registrar.item_key(name);
             registrar.item_part(gauge_item, FacesAwayFromSupport);
         }

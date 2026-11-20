@@ -9,6 +9,11 @@
   "block.create.gearbox": "Caja de engranajes",
   "block.create.clutch": "Embrague",
   "block.create.gearshift": "Inversor de giro",
+  "block.create.hand_crank": "Manivela",
+  "block.create.water_wheel": "Rueda de agua",
+  "block.create.mechanical_saw": "Sierra mecánica",
+  "block.create.mechanical_harvester": "Cosechadora mecánica",
+  "block.create.mechanical_plough": "Arado mecánico",
   "item.create.wrench": "Llave",
   "itemGroup.create.kinetics": "Create for Horizon",
   "create.report.idle": "Create: %1$s conectados, sin fuente: no gira nada.",
@@ -20,5 +25,7 @@
   "create.motor.speed_reversed": "Motor creativo: %1$s RPM, invertido.",
   "create.motor.reversed": "Motor creativo: invertido.",
   "create.motor.normal": "Motor creativo: vuelve a su sentido normal.",
+  "create.wheel.reversed": "Rueda de agua: invertida.",
+  "create.wheel.normal": "Rueda de agua: vuelve a su sentido normal.",
   "create.loaded": "Create for Horizon está cargado."
 }

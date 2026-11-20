@@ -1,0 +1,45 @@
+{
+  "textures": {
+    "metal": "create:block/drill_metal",
+    "blade": "create:block/harvester_blade",
+    "particle": "create:block/drill_metal"
+  },
+  "elements": [
+    {
+      "from": [4, 4, 3],
+      "to": [12, 12, 6],
+      "faces": {
+        "down": { "uv": [4, 3, 12, 6], "texture": "#metal" },
+        "up": { "uv": [4, 3, 12, 6], "texture": "#metal" },
+        "north": { "uv": [4, 4, 12, 12], "texture": "#metal" },
+        "south": { "uv": [4, 4, 12, 12], "texture": "#metal" },
+        "west": { "uv": [3, 4, 6, 12], "texture": "#metal" },
+        "east": { "uv": [3, 4, 6, 12], "texture": "#metal" }
+      }
+    },
+    {
+      "from": [0, 7, 0],
+      "to": [16, 9, 4],
+      "faces": {
+        "down": { "uv": [0, 0, 16, 4], "texture": "#blade" },
+        "up": { "uv": [0, 0, 16, 4], "texture": "#blade" },
+        "north": { "uv": [0, 7, 16, 9], "texture": "#blade" },
+        "south": { "uv": [0, 7, 16, 9], "texture": "#blade" },
+        "west": { "uv": [0, 7, 4, 9], "texture": "#blade" },
+        "east": { "uv": [0, 7, 4, 9], "texture": "#blade" }
+      }
+    },
+    {
+      "from": [7, 0, 0],
+      "to": [9, 16, 4],
+      "faces": {
+        "down": { "uv": [7, 0, 9, 4], "texture": "#blade" },
+        "up": { "uv": [7, 0, 9, 4], "texture": "#blade" },
+        "north": { "uv": [7, 0, 9, 16], "texture": "#blade" },
+        "south": { "uv": [7, 0, 9, 16], "texture": "#blade" },
+        "west": { "uv": [0, 0, 4, 16], "texture": "#blade" },
+        "east": { "uv": [0, 0, 4, 16], "texture": "#blade" }
+      }
+    }
+  ]
+}

@@ -9,7 +9,12 @@
     "create:clutch",
     "create:gearshift",
     "create:creative_motor",
+    "create:hand_crank",
+    "create:water_wheel",
     "create:mechanical_drill",
+    "create:mechanical_saw",
+    "create:mechanical_harvester",
+    "create:mechanical_plough",
     "create:speedometer",
     "create:stressometer",
     "create:wrench"
