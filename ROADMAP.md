@@ -155,7 +155,19 @@ with riders, which is the hardest part of the original mod to reproduce.
 
 Risk: very high. Planned only after M7.
 
-## Idea · A speed screen for the motor (asked for by the user; not started)
+## A speed screen for the motor — built and tried in the game
+
+Built as described below. What was learned in the game: a mod block opens its menu by itself only
+when its template is one of a few classes (chest, barrel, hopper...), so the click calls
+`player.open_menu(host, entity)`; a menu type needs at least one slot (the motor's is hidden and
+unreachable); the screen is drawn with `fill` and `text` and a press arrives as a menu button id.
+Tried: the screen opens, a press on the track set -8 RPM (`invert=true`, `rpm=8`) and the `>` button
+stepped it to -4. Not possible with the current SDK: dragging the knob (the drag hook cannot send a
+button to the server); a press anywhere on the track does the job. Mouse wheel not tried.
+
+(The original idea, as asked for:)
+
+### Idea · A speed screen for the motor
 
 A small screen opened from the Creative Motor with a slider that sets its speed in both
 directions, from -256 to 256 RPM, in place of sneak-clicking through the presets and reversing

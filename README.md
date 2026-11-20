@@ -26,7 +26,7 @@ Horizon** creative tab.
 
 | Item | What it does |
 | --- | --- |
-| **Creative Motor** | A source. Sneak with an empty hand to step its speed 1, 2, 4 ... 256 RPM; the Wrench on an end of the motor reverses it. It carries 1024 stress units per RPM. |
+| **Creative Motor** | A source. Right click it with an empty hand to open its screen: a slider from -256 to 256 RPM (a press anywhere on it sets that step; the two arrow buttons move one step), negative speeds turn it the other way. Sneak with an empty hand still steps its speed 1, 2, 4 ... 256 RPM; the Wrench on an end of the motor reverses it. It carries 1024 stress units per RPM. |
 | **Shaft** | Carries rotation in a line, at the same speed and direction. |
 | **Cogwheel** / **Large Cogwheel** | Mesh with other cogwheels to change direction and speed. |
 | **Gearbox** | Four shaft ends across its axis: turns a corner. A shaft straight through it comes out reversed. |
@@ -59,8 +59,9 @@ under `data/create/recipe/pressing/` and `data/create/recipe/milling/`, so a dat
 * Place a Creative Motor and a line of shafts along its axis. Blocks turn after a moment.
 * **Right click with an empty hand** on any machine to read its network: how many blocks are
   connected, the speed of that block, and the stress against the capacity. On a gauge it reads the
-  block the gauge is stuck to.
-* **Sneak and right click with an empty hand** on the motor to step its speed.
+  block the gauge is stuck to. On the motor it opens its speed screen instead (use a gauge to read
+  its network).
+* **Sneak and right click with an empty hand** on the motor to step its speed without the screen.
 * **Right click with the Wrench** to turn a block. A face on another axis moves the block to the
   third axis; a face on its own axis steps it x, y, z. On the motor, a face on its own axis reverses
   it instead (so does the water wheel). A drill, saw, harvester, plough or crank turns its facing.
