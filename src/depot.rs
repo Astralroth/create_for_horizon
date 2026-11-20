@@ -42,6 +42,24 @@ pub fn held_after_putting(count: u32, creative: bool) -> u32 {
     if creative { count } else { count.saturating_sub(1) }
 }
 
+/// Writes the stack on show into the depot's saved data and tells the clients, which have no
+/// item slots and learn what to draw only from that data. `None` clears it.
+fn show(
+    host: &mut dyn ServerHost,
+    entity: mod_api::BlockEntityRef,
+    level: mod_api::LevelRef,
+    pos: [i32; 3],
+    stack: Option<&ItemStack>,
+) {
+    let shown = stack
+        .and_then(|stack| stack.to_nbt(&*host))
+        .unwrap_or_default();
+    let mut data = Compound::new();
+    data.insert(SHOWN.into(), Tag::Compound(shown));
+    let _ = entity.merge_data(host, data);
+    let _ = level.send_block_updated(host, pos);
+}
+
 /// Clicks on the depot.
 pub struct DepotBlock;
 
@@ -68,6 +86,7 @@ impl BlockPart for DepotBlock {
         }
         let mut one = stack.clone();
         one.set_count(1).ok()?;
+        let on_show = one.clone();
         let put = host.transaction(|host, tx| {
             entity
                 .set_item_slot(host, tx, SLOT, Some(one))
@@ -78,6 +97,7 @@ impl BlockPart for DepotBlock {
         if put.is_err() {
             return None;
         }
+        show(host, entity, level, click.pos, Some(&on_show));
         let creative = player.is_creative(host) == Some(true);
         let left = held_after_putting(stack.count(), creative);
         if left != stack.count() {
@@ -115,6 +135,7 @@ impl BlockPart for DepotBlock {
         if taken.is_err() {
             return None;
         }
+        show(host, entity, level, click.pos, None);
         if player.give_stack(host, held.clone()).is_err() {
             // No room in the inventory: let it drop above the depot instead.
             let at = click.pos.map(f64::from);
@@ -164,6 +185,11 @@ impl BlockEntityPart for DepotEntity {
             update.insert(SHOWN.into(), Tag::Compound(shown));
             event.entity.set_client_update_fields(update);
             *event.reply = BlockEntityTickReply::Changed;
+            // Whatever changed the slot (a hopper, say) did not go through a click: tell the
+            // clients here too.
+            if let Some(level) = host.level(&host.dimension()) {
+                let _ = level.send_block_updated(host, event.pos);
+            }
         }
     }
 
