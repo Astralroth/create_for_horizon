@@ -13,7 +13,7 @@
     "requires_tool": false,
     "occludes": false,
     "render_shape": "ENTITYBLOCK_ANIMATED",
-    "sounds": "minecraft:wood"
+    "sounds": "minecraft:oak_planks"
   },
   "shapes": {
     "properties": ["facing"],

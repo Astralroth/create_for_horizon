@@ -122,7 +122,7 @@ Write-File 'assets/create/models/block/hand_crank.json' (Model $crankTextures $c
 $crankBoxes = @(@(0.25, 0.25, 0.8125, 0.75, 0.75, 1), @(0.375, 0.375, 0.375, 0.625, 0.625, 0.8125))
 $crankShapes = Shapes-Json 'facing' $facings { param($f) $crankBoxes | ForEach-Object { , (Turn-Box $_ $f) } }
 $crankState = "$facingProp,`n    ""charge"": { ""type"": ""enum"", ""values"": [""0"", ""1"", ""2"", ""3"", ""4""] },`n$speedProp,`n$reverseProp"
-Write-File 'data/create/horizon/block/hand_crank.json' (Block-Json 'minecraft:oak_log' $crankState '"facing": "north", "charge": "0", "speed": "0", "reverse": "false"' 1.5 3.0 $false 'minecraft:wood' $crankShapes)
+Write-File 'data/create/horizon/block/hand_crank.json' (Block-Json 'minecraft:oak_log' $crankState '"facing": "north", "charge": "0", "speed": "0", "reverse": "false"' 1.5 3.0 $false 'minecraft:oak_planks' $crankShapes)
 $lines = foreach ($c in 0..4) { foreach ($f in $facings) { foreach ($r in 'false', 'true') { foreach ($s in $speeds) {
     "    ""charge=$c,facing=$f,reverse=$r,speed=$s"": { ""model"": ""create:block/hand_crank""$($facingTurn[$f]) }"
 } } } }
@@ -145,7 +145,7 @@ Write-File 'assets/create/models/block/water_wheel.json' (Model $wheelTextures $
 $wheelBoxes = @(@(0, 0.375, 0.375, 1, 0.625, 0.625), @(0.375, 0.375, 0, 0.625, 0.625, 1), @(0.375, 0, 0.375, 0.625, 1, 0.625))
 $wheelShapes = Shapes-Json 'axis' @('x', 'y', 'z') { param($a) $wheelBoxes | ForEach-Object { , (Swap-Box $_ $a) } }
 $wheelState = "$speedProp,`n$reverseProp,`n    ""invert"": { ""type"": ""boolean"" }"
-Write-File 'data/create/horizon/block/water_wheel.json' (Block-Json 'minecraft:oak_log' $wheelState '"speed": "0", "reverse": "false", "invert": "false"' 2.0 3.0 $false 'minecraft:wood' $wheelShapes)
+Write-File 'data/create/horizon/block/water_wheel.json' (Block-Json 'minecraft:oak_log' $wheelState '"speed": "0", "reverse": "false", "invert": "false"' 2.0 3.0 $false 'minecraft:oak_planks' $wheelShapes)
 $axisTurn = @{ y = ''; z = ', "x": 90'; x = ', "x": 90, "y": 90' }
 $lines = foreach ($a in 'y', 'z', 'x') { foreach ($i in 'false', 'true') { foreach ($r in 'false', 'true') { foreach ($s in $speeds) {
     "    ""axis=$a,invert=$i,reverse=$r,speed=$s"": { ""model"": ""create:block/water_wheel""$($axisTurn[$a]) }"
