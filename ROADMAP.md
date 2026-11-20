@@ -148,12 +148,25 @@ the same block entity type as the other kinetic blocks. Not done: the output is 
 of 64 whatever the item, only one recipe per input is read (the first that matches), and the stones
 spinning inside were drawn but not looked at closely.
 
-## M8 · Logistics (needs research)
+## M8 · Logistics ◆ — researched, not started
 
 **Belts**, **chutes** and **funnels** to move items between machines. A belt is a moving surface
 with riders, which is the hardest part of the original mod to reproduce.
 
-Risk: very high. Planned only after M7.
+- The research is done: see [docs/M8-research.md](docs/M8-research.md). Recommended design: the
+  belt's block entity keeps a short list of items with positions (no item entities); the belt
+  answers the `ITEMS` capability through a handler of the mod's own, so hoppers, chutes and funnels
+  can fill it; clients draw a scrolling surface and the items from the last synced position plus
+  the speed, so nothing is sent each tick.
+- Suggested build order: **M8a** one belt (items list, `ITEMS` provider, moving drawing, hand-off
+  into a container, a click to put an item on), **M8b** belt chains and turns, **M8c** chute and
+  funnel, **M8d** carrying players and mobs (optional).
+- Still unknown, to test first: a custom `ResourceHandler` through `block_capability`; writing the
+  belt's data inside a handler's transaction; how smooth the extrapolated drawing is; a scrolling
+  quad on a block entity; the cost of many ticking belts; whether a server-set velocity moves a
+  standing player.
+
+Risk: medium to high for M8a (the largest step so far), then medium.
 
 ## A speed screen for the motor — built and tried in the game
 
