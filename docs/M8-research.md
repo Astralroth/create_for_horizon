@@ -90,3 +90,9 @@ the depot; the rest repeat patterns already in the mod. Risk: medium to high for
 Sloped and curved belt models, belts several blocks wide, filters and priorities, items on both
 lanes of a belt, tunnels and brass funnels, and anything that needs the original mod's contraption
 system.
+
+## Answers from M8a
+
+A custom `ResourceHandler` through `block_capability` works (hoppers fed the belt); writing the
+belt data inside the handler works (`merge_data`); a scrolling quad works; the drawing extrapolated
+from game time looked smooth. Still open: many ticking belts, turns, entities.

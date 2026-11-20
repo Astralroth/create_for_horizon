@@ -148,7 +148,18 @@ the same block entity type as the other kinetic blocks. Not done: the output is 
 of 64 whatever the item, only one recipe per input is read (the first that matches), and the stones
 spinning inside were drawn but not looked at closely.
 
-## M8 · Logistics ◆ — researched, not started
+## M8 · Logistics ◆ — M8a built and tried in the game; M8b-d not started
+
+**M8a result.** One belt block (`create:belt`, recipe shaft + 2 leather) with a shaft along its
+travel. Tried in the game: the scrolling surface draws; a right click puts an item on; items pass
+belt to belt and into a depot; when the end is blocked they stop spaced by a gap and resume once it
+clears; a hopper above feeds a belt through the mod's own `ITEMS` handler; reversing the motor flips
+the flow (`Dir: -1`) and the items wait at the other end; stopped items are drawn flat in a row. The
+four unknowns below resolved well: the custom handler works, writing data inside it works, the
+scrolling quad works and the extrapolated drawing looked smooth. Not tried: belt turns, long chains
+and the cost of many belts, chutes, funnels, carrying entities.
+
+### Original M8 plan
 
 **Belts**, **chutes** and **funnels** to move items between machines. A belt is a moving surface
 with riders, which is the hardest part of the original mod to reproduce.

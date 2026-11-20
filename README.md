@@ -38,6 +38,7 @@ Horizon** creative tab.
 | **Depot** | Holds one item on top. Right click with an item puts one on it, right click with an empty hand takes it back, and hoppers fill and empty it from any side. Sneak to place a block against it instead. (First step of M7; the press and the millstone are not built yet.) |
 | **Mechanical Press** | Uses 8 stress units per RPM. Put it above a Depot or any container: while it turns it presses the first item in it that a `create:pressing` recipe takes (starter recipes: iron ingot or gold ingot to 9 nuggets, sugar cane to paper) and swaps it for the result. Its shaft runs along the horizontal axis you look along when you place it; the ram only moves while it has something to press. |
 | **Millstone** | Uses 4 stress units per RPM. Two slots: right click with an item puts the stack in, an empty hand takes what it has ground. Hoppers fill it from above and the sides and empty it from below. While it turns it grinds one item at a time through a `create:milling` recipe (cobblestone to gravel, gravel to sand, bone to 3 bone meal, blaze rod to 2 blaze powder). Like the press, its shaft runs along the horizontal axis you look along when you place it. |
+| **Belt** | Uses 2 stress units per RPM and carries up to 4 items along its length. Its shaft runs along the belt (place it looking along the way it should go) and a motor or shaft at one end drives it; the speed sets how fast items move and a reversed motor reverses the belt. Right click with an item puts one on it, and hoppers above or beside it feed it. At the far end it hands items to the next belt or any container (depot, press, millstone, hopper); when nothing takes them they wait in a row. |
 | **Mechanical Drill** | Uses 8 stress units per RPM and breaks the block in front of it. |
 | **Mechanical Saw** | Uses 12 stress units per RPM and fells the log in front of it (any log, stem or wood block), a little faster than the drill would. |
 | **Mechanical Harvester** | Uses 6 stress units per RPM. Harvests the ripe crop in front of it (wheat, carrots, potatoes, beetroots, nether wart) and plants it again. |
@@ -50,7 +51,7 @@ shaft + redstone + gold ingot. Speedometer = cogwheel + compass. Stressometer = 
 Wrench = 2 iron ingots + stick. Mechanical Drill = cogwheel + iron pickaxe + iron ingot. Mechanical
 Saw = cogwheel + iron axe + iron ingot. Mechanical Harvester = cogwheel + shears + iron ingot.
 Mechanical Plough = cogwheel + iron hoe + iron ingot. Hand Crank = shaft + 2 sticks. Water Wheel =
-cogwheel + 4 oak planks. Depot = stone slab + iron nugget. Mechanical Press = cogwheel + iron ingot
+cogwheel + 4 oak planks. Belt = shaft + 2 leather. Depot = stone slab + iron nugget. Mechanical Press = cogwheel + iron ingot
 + piston. Millstone = large cogwheel + 2 cobblestone. Pressing and milling recipes are data files
 under `data/create/recipe/pressing/` and `data/create/recipe/milling/`, so a data pack can add more. The Creative Motor has no recipe.
 
@@ -117,7 +118,8 @@ and recipes of the crank, the wheel and the three machines are generated the sam
 * Speed on screen is shown as the nearest power of two from 1 to 256 RPM; the exact value is in the
   click report. Blocks look at their network every half second, and a clutch or gearshift at its
   redstone signal every tenth of a second.
-* No belts yet. The water wheel is a single block and reads only the four blocks beside it and the
+* Belts are a first step: no chutes or funnels yet, belts do not carry players or mobs, and turns
+  (a belt feeding the side of another) and long chains have not been tried. The water wheel is a single block and reads only the four blocks beside it and the
   direction of the current there; the Wrench on it flips the direction it turns.
 * The drill breaks any breakable block in front of it, containers included, and drops the items.
   The saw fells one log at a time, not a whole tree. Machines do nothing while the network stands
