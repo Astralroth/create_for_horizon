@@ -117,7 +117,7 @@ Risk: low for correctness, high for taste. Test: look at every block and item in
 including powered clutch and gearshift and a gauge's dial; switch the game to Spanish and check the
 names and the click report; listen to the wrench, the motor clicks and a working drill.
 
-## M7 · Items on machines — M7a (Depot) and M7b (Press) built and tried in the game
+## M7 · Items on machines ◆ — built and tried in the game (Depot, Press, Millstone)
 
 Processing that holds items: a **Millstone** and a **Mechanical Press** on a **Depot**.
 
@@ -139,7 +139,12 @@ type of the mod's own had to be declared at registration (see the research note)
 press works one item at a time, so by design a stack of two in a one-slot depot cannot be pressed
 (the result has no free slot; not tried), and nothing shows the work in progress besides the ram.
 
-Risk for M7c: low; it is the same pattern with two slots and a different recipe type.
+M7c works: right click with an item puts a stack into the millstone, it ground 10 cobblestone into
+10 gravel and an empty hand took them out; a hopper above fed it gravel and a hopper below collected
+the sand, so a line of hoppers, millstone and hopper runs by itself. The millstone's slots live in
+the same block entity type as the other kinetic blocks. Not done: the output is capped at a stack
+of 64 whatever the item, only one recipe per input is read (the first that matches), and the stones
+spinning inside were drawn but not looked at closely.
 
 ## M8 · Logistics (needs research)
 

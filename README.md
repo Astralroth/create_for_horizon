@@ -35,6 +35,7 @@ Horizon** creative tab.
 | **Water Wheel** | A small source. Each of its four sides (across its axis) with flowing water pushes it one way or the other by the direction of the current, and it turns at 4 RPM for each net push, up to 16 RPM. Currents that push opposite ways cancel, so water flowing both ways around it does not turn it; still source blocks do not count. The Wrench on an end reverses it. 256 stress units per RPM. |
 | **Depot** | Holds one item on top. Right click with an item puts one on it, right click with an empty hand takes it back, and hoppers fill and empty it from any side. Sneak to place a block against it instead. (First step of M7; the press and the millstone are not built yet.) |
 | **Mechanical Press** | Uses 8 stress units per RPM. Put it above a Depot or any container: while it turns it presses the first item in it that a `create:pressing` recipe takes (starter recipes: iron ingot or gold ingot to 9 nuggets, sugar cane to paper) and swaps it for the result. Its shaft runs along the horizontal axis you look along when you place it; the ram only moves while it has something to press. |
+| **Millstone** | Uses 4 stress units per RPM. Two slots: right click with an item puts the stack in, an empty hand takes what it has ground. Hoppers fill it from above and the sides and empty it from below. While it turns it grinds one item at a time through a `create:milling` recipe (cobblestone to gravel, gravel to sand, bone to 3 bone meal, blaze rod to 2 blaze powder). Like the press, its shaft runs along the horizontal axis you look along when you place it. |
 | **Mechanical Drill** | Uses 8 stress units per RPM and breaks the block in front of it. |
 | **Mechanical Saw** | Uses 12 stress units per RPM and fells the log in front of it (any log, stem or wood block), a little faster than the drill would. |
 | **Mechanical Harvester** | Uses 6 stress units per RPM. Harvests the ripe crop in front of it (wheat, carrots, potatoes, beetroots, nether wart) and plants it again. |
@@ -48,8 +49,8 @@ Wrench = 2 iron ingots + stick. Mechanical Drill = cogwheel + iron pickaxe + iro
 Saw = cogwheel + iron axe + iron ingot. Mechanical Harvester = cogwheel + shears + iron ingot.
 Mechanical Plough = cogwheel + iron hoe + iron ingot. Hand Crank = shaft + 2 sticks. Water Wheel =
 cogwheel + 4 oak planks. Depot = stone slab + iron nugget. Mechanical Press = cogwheel + iron ingot
-+ piston. Pressing recipes are data files under `data/create/recipe/pressing/`, so a data pack can
-add more. The Creative Motor has no recipe.
++ piston. Millstone = large cogwheel + 2 cobblestone. Pressing and milling recipes are data files
+under `data/create/recipe/pressing/` and `data/create/recipe/milling/`, so a data pack can add more. The Creative Motor has no recipe.
 
 ### How to use it
 
