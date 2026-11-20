@@ -74,9 +74,10 @@ Ways to make power other than the Creative Motor.
 - **Hand Crank**: right click with an empty hand gives it four steps of charge (five ticks each) at
   32 RPM, so holding the use button, which repeats the click, keeps it turning. Sneak reads the
   network instead.
-- **Water Wheel**: 4 RPM for each of the four sides across its axis with flowing (not source) water
-  against it, up to 16 RPM; the Wrench on an end reverses it. It does not read the current's
-  direction.
+- **Water Wheel**: each of the four sides across its axis with flowing (not source) water pushes it
+  by the torque of that current about the axle (`offset x flow`), 4 RPM per net push up to 16 RPM;
+  currents that push opposite ways cancel. The Wrench on an end reverses it.
+- The Hand Crank has a shaft end only on the side it is stuck to (`Kind::Stub` in the solver).
 - Both carry 256 stress units per RPM; at rest they are plain joints, so a network passes through
   them. A source's capacity follows its speed, so several sources add up and must agree.
 

@@ -32,7 +32,7 @@ Horizon** creative tab.
 | **Gearshift** | A shaft that reverses the far side while it has a redstone signal. |
 | **Speedometer** / **Stressometer** | Stick one on a block: a needle shows its speed, or the share of stress in use. |
 | **Hand Crank** | A small source with a shaft end only on the side it is stuck to (the handle side joins nothing). Right click it with an empty hand: it turns at 32 RPM for a moment, and holding the use button keeps it turning. Sneak with an empty hand to read its network. It carries 256 stress units per RPM. |
-| **Water Wheel** | A small source. It turns at 4 RPM for each of its four sides (across its axis) that has flowing water against it, up to 16 RPM; a still source block does not count. The Wrench on an end reverses it. 256 stress units per RPM. |
+| **Water Wheel** | A small source. Each of its four sides (across its axis) with flowing water pushes it one way or the other by the direction of the current, and it turns at 4 RPM for each net push, up to 16 RPM. Currents that push opposite ways cancel, so water flowing both ways around it does not turn it; still source blocks do not count. The Wrench on an end reverses it. 256 stress units per RPM. |
 | **Mechanical Drill** | Uses 8 stress units per RPM and breaks the block in front of it. |
 | **Mechanical Saw** | Uses 12 stress units per RPM and fells the log in front of it (any log, stem or wood block), a little faster than the drill would. |
 | **Mechanical Harvester** | Uses 6 stress units per RPM. Harvests the ripe crop in front of it (wheat, carrots, potatoes, beetroots, nether wart) and plants it again. |
@@ -109,8 +109,8 @@ and recipes of the crank, the wheel and the three machines are generated the sam
 * Speed on screen is shown as the nearest power of two from 1 to 256 RPM; the exact value is in the
   click report. Blocks look at their network every half second, and a clutch or gearshift at its
   redstone signal every tenth of a second.
-* No belts yet. The water wheel is a single block and reads only the four blocks beside it; it does
-  not take the direction of the current into account, so use the Wrench on it to pick its direction.
+* No belts yet. The water wheel is a single block and reads only the four blocks beside it and the
+  direction of the current there; the Wrench on it flips the direction it turns.
 * The drill breaks any breakable block in front of it, containers included, and drops the items.
   The saw fells one log at a time, not a whole tree. Machines do nothing while the network stands
   still, is overstressed or locked.
