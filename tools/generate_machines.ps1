@@ -185,7 +185,49 @@ foreach ($m in $machines) {
     Write-File "assets/create/items/$name.json" (Item-Json "$($name)_item")
 }
 
+"Mechanical Press:"
+# Written for a shaft along z: a casing with two side posts, a shaft through it and a ram that
+# the adapter lowers onto the block below. The ram's model never turns; the body and the shaft
+# are turned to the other horizontal axis by the block state.
+$pressBody = @(
+    (Elem @(1, 10, 1) @(15, 16, 15) 'casing'),
+    (Elem @(0, 4, 2) @(2, 10, 14) 'casing'),
+    (Elem @(14, 4, 2) @(16, 10, 14) 'casing')
+)
+$pressShaft = @((Elem @(6, 11, 0) @(10, 15, 16) 'axle'))
+$pressHead = @(
+    (Elem @(7, 6, 7) @(9, 10, 9) 'metal'),
+    (Elem @(3, 3, 3) @(13, 6, 13) 'metal')
+)
+$pressTextures = [ordered]@{ casing = 'create:block/dark_casing'; axle = 'create:block/steel'; metal = 'create:block/drill_metal'; particle = 'create:block/dark_casing' }
+Write-File 'assets/create/models/block/mechanical_press_body.json' (Model $pressTextures $pressBody)
+Write-File 'assets/create/models/block/mechanical_press_shaft.json' (Model $pressTextures $pressShaft)
+Write-File 'assets/create/models/block/mechanical_press_head.json' (Model $pressTextures $pressHead)
+Write-File 'assets/create/models/block/mechanical_press_item.json' (Model $pressTextures ($pressBody + $pressShaft + $pressHead))
+# Boxes for a shaft along z, as fractions of a block; the x version swaps x and z.
+$pressBoxes = @(@(0.0625, 0.625, 0.0625, 0.9375, 1, 0.9375), @(0, 0.25, 0.125, 0.125, 0.625, 0.875), @(0.875, 0.25, 0.125, 1, 0.625, 0.875))
+$pressShapes = Shapes-Json 'axis' @('x', 'y', 'z') { param($a) $pressBoxes | ForEach-Object { if ($a -eq 'x') { , @($_[2], $_[1], $_[0], $_[5], $_[4], $_[3]) } else { , $_ } } }
+$pressState = "    ""part"": { ""type"": ""enum"", ""values"": [""body"", ""shaft"", ""head""] },`n$speedProp,`n$reverseProp,`n    ""working"": { ""type"": ""boolean"" }"
+Write-File 'data/create/horizon/block/mechanical_press.json' (Block-Json 'minecraft:oak_log' $pressState '"part": "body", "speed": "0", "reverse": "false", "working": "false"' 3.0 6.0 $true 'minecraft:andesite' $pressShapes)
+$pressTurn = @{ z = ''; y = ''; x = ', "y": 90' }
+$lines = foreach ($a in 'x', 'y', 'z') { foreach ($part in 'body', 'shaft', 'head') { foreach ($r in 'false', 'true') { foreach ($s in $speeds) { foreach ($w in 'false', 'true') {
+    $turn = if ($part -eq 'head') { '' } else { $pressTurn[$a] }
+    "    ""axis=$a,part=$part,reverse=$r,speed=$s,working=$w"": { ""model"": ""create:block/mechanical_press_$part""$turn }"
+} } } } }
+Write-File 'assets/create/blockstates/mechanical_press.json' (Variants $lines)
+Write-File 'assets/create/items/mechanical_press.json' (Item-Json 'mechanical_press_item')
+
+"Pressing recipes (a recipe type of the mod's own):"
+function Pressing-Json([string]$ingredient, [string]$result, [int]$count, [int]$work) {
+    "{`n  ""type"": ""create:pressing"",`n  ""ingredient"": ""$ingredient"",`n  ""result"": { ""id"": ""$result"", ""count"": $count },`n  ""work"": $work`n}`n"
+}
+Write-File 'data/create/recipe/pressing/iron_ingot.json' (Pressing-Json 'minecraft:iron_ingot' 'minecraft:iron_nugget' 9 300)
+Write-File 'data/create/recipe/pressing/gold_ingot.json' (Pressing-Json 'minecraft:gold_ingot' 'minecraft:gold_nugget' 9 300)
+Write-File 'data/create/recipe/pressing/sugar_cane.json' (Pressing-Json 'minecraft:sugar_cane' 'minecraft:paper' 1 200)
+
 "Loot tables and recipes:"
+Write-File 'data/create/loot_table/blocks/mechanical_press.json' (Loot-Json 'mechanical_press')
+Write-File 'data/create/recipe/mechanical_press.json' (Recipe-Json 'mechanical_press' @('create:cogwheel', 'minecraft:iron_ingot', 'minecraft:piston'))
 foreach ($name in 'hand_crank', 'water_wheel', 'mechanical_saw', 'mechanical_harvester', 'mechanical_plough') {
     Write-File "data/create/loot_table/blocks/$name.json" (Loot-Json $name)
 }

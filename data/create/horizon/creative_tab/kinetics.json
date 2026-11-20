@@ -18,6 +18,7 @@
     "create:speedometer",
     "create:stressometer",
     "create:depot",
+    "create:mechanical_press",
     "create:wrench"
   ]
 }

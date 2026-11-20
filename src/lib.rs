@@ -18,6 +18,8 @@ mod direction;
 mod engine;
 mod messages;
 mod motor;
+mod press;
+mod pressing;
 mod sources;
 mod visual;
 mod work;
@@ -47,6 +49,7 @@ struct Keys {
     saw: BlockKey,
     harvester: BlockKey,
     plough: BlockKey,
+    press: BlockKey,
     crank: BlockKey,
     wheel: BlockKey,
     speedometer: BlockKey,
@@ -96,6 +99,11 @@ impl Keys {
             Some(Kind::Consumer {
                 axis,
                 impact: worker.impact(),
+            })
+        } else if block == self.press {
+            Some(Kind::Consumer {
+                axis,
+                impact: pressing::IMPACT,
             })
         } else if block == self.wheel {
             // A small source: at rest it is only a joint, so the network still passes through.
@@ -150,6 +158,7 @@ impl Keys {
             "create:mechanical_saw" => Some(self.saw),
             "create:mechanical_harvester" => Some(self.harvester),
             "create:mechanical_plough" => Some(self.plough),
+            "create:mechanical_press" => Some(self.press),
             "create:hand_crank" => Some(self.crank),
             "create:water_wheel" => Some(self.wheel),
             "create:speedometer" => Some(self.speedometer),
@@ -701,6 +710,22 @@ impl ItemPart for FacesWherePlacerLooks {
     }
 }
 
+/// Makes a press run its shaft along the horizontal axis its player looks along, so it is never
+/// placed with the shaft straight up and the ram beside it.
+struct ShaftAlongLook;
+
+#[mod_api::horizon_part]
+impl ItemPart for ShaftAlongLook {
+    fn on_block_placed_by(&self, host: &mut dyn ServerHost, event: &mut OnBlockPlacedByEvent<'_>) {
+        let Some(placer) = event.placer else { return };
+        let Some([yaw, _]) = placer.entity().rotation(host) else {
+            return;
+        };
+        let axis = Direction::from_look(yaw, 0.0).axis();
+        host.set_block_property(event.pos, "axis", axis.name());
+    }
+}
+
 /// Makes a gauge face away from the block it was placed against.
 struct FacesAwayFromSupport;
 
@@ -736,6 +761,7 @@ impl BlockEntityPart for Kinetic {
                 | "create:mechanical_saw"
                 | "create:mechanical_harvester"
                 | "create:mechanical_plough"
+                | "create:mechanical_press"
         )
         .then(|| {
             let mut data = Compound::new();
@@ -756,6 +782,7 @@ impl BlockEntityPart for Kinetic {
         let _ = cool_crank(host, event.pos);
         let _ = refresh(host, event.pos);
         let _ = work(host, event);
+        let _ = press::tick(host, event);
     }
 
     fn block_entity_submit(&self, host: &dyn ClientHost, event: &mut BlockEntitySubmitEvent<'_>) {
@@ -793,6 +820,33 @@ impl BlockEntityPart for Kinetic {
                 [0.5; 3],
             );
             draw.block(block, &[("facing", facing), ("part", "needle")]);
+            draw.pop();
+            return;
+        }
+        if block == keys.press {
+            // The casing stays, the shaft turns about the press's axis and the ram goes up and
+            // down while the press has something to press.
+            let Some(axis_name) = property("axis") else {
+                return;
+            };
+            let Some(axis) = axis_from(axis_name) else {
+                return;
+            };
+            let working = property("working") == Some("true");
+            let draw = &mut *event.draw;
+            draw.push();
+            draw.block(block, &[("axis", axis_name), ("part", "body")]);
+            draw.pop();
+            draw.push();
+            draw.rotate_about(axis_vector(axis), degrees, [0.5; 3]);
+            draw.block(block, &[("axis", axis_name), ("part", "shaft")]);
+            draw.pop();
+            draw.push();
+            if working {
+                let depth = pressing::ram_depth(draw.animation_time(), level);
+                draw.translate([0.0, -depth, 0.0]);
+            }
+            draw.block(block, &[("axis", axis_name), ("part", "head")]);
             draw.pop();
             return;
         }
@@ -869,6 +923,7 @@ impl Hooks for CreateMod {
             saw: registrar.block_key("create:mechanical_saw"),
             harvester: registrar.block_key("create:mechanical_harvester"),
             plough: registrar.block_key("create:mechanical_plough"),
+            press: registrar.block_key("create:mechanical_press"),
             crank: registrar.block_key("create:hand_crank"),
             wheel: registrar.block_key("create:water_wheel"),
             speedometer: registrar.block_key("create:speedometer"),
@@ -889,6 +944,7 @@ impl Hooks for CreateMod {
             keys.saw,
             keys.harvester,
             keys.plough,
+            keys.press,
             keys.crank,
             keys.wheel,
             keys.speedometer,
@@ -910,6 +966,7 @@ impl Hooks for CreateMod {
                 "mechanical_saw",
                 "mechanical_harvester",
                 "mechanical_plough",
+                "mechanical_press",
                 "hand_crank",
                 "water_wheel",
                 "speedometer",
@@ -943,6 +1000,8 @@ impl Hooks for CreateMod {
             let machine_item = registrar.item_key(name);
             registrar.item_part(machine_item, FacesWherePlacerLooks);
         }
+        let press_item = registrar.item_key("create:mechanical_press");
+        registrar.item_part(press_item, ShaftAlongLook);
         for name in [
             "create:speedometer",
             "create:stressometer",

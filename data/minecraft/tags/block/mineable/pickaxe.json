@@ -3,6 +3,7 @@
     "create:shaft",
     "create:creative_motor",
     "create:depot",
+    "create:mechanical_press",
     "create:mechanical_drill",
     "create:mechanical_saw",
     "create:mechanical_harvester",

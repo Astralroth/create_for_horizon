@@ -1,0 +1,6 @@
+{
+  "type": "create:pressing",
+  "ingredient": "minecraft:iron_ingot",
+  "result": { "id": "minecraft:iron_nugget", "count": 9 },
+  "work": 300
+}

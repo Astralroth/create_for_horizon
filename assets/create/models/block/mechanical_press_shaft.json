@@ -1,0 +1,22 @@
+{
+  "textures": {
+    "casing": "create:block/dark_casing",
+    "axle": "create:block/steel",
+    "metal": "create:block/drill_metal",
+    "particle": "create:block/dark_casing"
+  },
+  "elements": [
+    {
+      "from": [6, 11, 0],
+      "to": [10, 15, 16],
+      "faces": {
+        "down": { "uv": [6, 0, 10, 16], "texture": "#axle" },
+        "up": { "uv": [6, 0, 10, 16], "texture": "#axle" },
+        "north": { "uv": [6, 11, 10, 15], "texture": "#axle" },
+        "south": { "uv": [6, 11, 10, 15], "texture": "#axle" },
+        "west": { "uv": [0, 11, 16, 15], "texture": "#axle" },
+        "east": { "uv": [0, 11, 16, 15], "texture": "#axle" }
+      }
+    }
+  ]
+}
