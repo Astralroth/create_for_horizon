@@ -1145,7 +1145,7 @@ impl Hooks for CreateMod {
             registrar.item_part(item, ShaftAlongLook { across: false });
         }
         let belt_item = registrar.item_key("create:belt");
-        registrar.item_part(belt_item, ShaftAlongLook { across: true });
+        registrar.item_part(belt_item, ShaftAlongLook { across: false });
         for name in [
             "create:speedometer",
             "create:stressometer",

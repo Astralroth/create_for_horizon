@@ -138,12 +138,13 @@ fn signed_rpm(host: &dyn Host, level: &LevelRef, pos: Pos) -> i32 {
     }
 }
 
-/// The direction items go along a belt turning about `axis` when its speed is positive: across
-/// the shaft, to the south for an x shaft and to the east for a z one.
+/// The direction items go along a belt turning about `axis` when its speed is positive: along the
+/// shaft, to the east for an x shaft and to the south for a z one. A line of belts is a line of
+/// shafts, so one motor at its end turns them all.
 fn forward(axis: Axis) -> Direction {
     match axis {
-        Axis::X => Direction::South,
-        _ => Direction::East,
+        Axis::X => Direction::East,
+        _ => Direction::South,
     }
 }
 
@@ -174,7 +175,7 @@ fn axis_at(host: &dyn Host, level: &LevelRef, pos: Pos) -> Axis {
         .as_deref()
         .and_then(axis_from)
         .filter(|axis| *axis != Axis::Y)
-        .unwrap_or(Axis::X)
+        .unwrap_or(Axis::Z)
 }
 
 /// Hands one item to what is in front of the belt: another belt, a container. False when nothing
@@ -363,8 +364,8 @@ fn surface(draw: &mut dyn mod_api::BlockEntityDrawContext, axis: Axis, scroll: f
         let y = SURFACE_Y;
         // Corners in a model face's order: top left, bottom left, bottom right, top right.
         let corners = match axis {
-            Axis::X => [[s0, y, t0], [s0, y, t1], [s1, y, t1], [s1, y, t0]],
-            _ => [[t0, y, s0], [t1, y, s0], [t1, y, s1], [t0, y, s1]],
+            Axis::X => [[t0, y, s0], [t1, y, s0], [t1, y, s1], [t0, y, s1]],
+            _ => [[s0, y, t0], [s0, y, t1], [s1, y, t1], [s1, y, t0]],
         };
         let uv = [s0 * 16.0, v0, s1 * 16.0, v1];
         draw.quad("create:block/belt_surface", corners, uv, 0xFFFFFF);
@@ -383,7 +384,7 @@ pub fn submit(host: &dyn ClientHost, event: &mut BlockEntitySubmitEvent<'_>, blo
     };
     let axis = axis_from(axis_name)
         .filter(|axis| *axis != Axis::Y)
-        .unwrap_or(Axis::X);
+        .unwrap_or(Axis::Z);
     let turning = property("speed")
         .and_then(visual::level_from_name)
         .unwrap_or(0) as i32;
@@ -410,8 +411,8 @@ pub fn submit(host: &dyn ClientHost, event: &mut BlockEntitySubmitEvent<'_>, blo
     for (stack, progress) in state.items.iter().zip(places) {
         let along = if state.flow >= 0 { progress } else { 1.0 - progress };
         let at = match axis {
-            Axis::X => [0.5, ITEM_HEIGHT, along],
-            _ => [along, ITEM_HEIGHT, 0.5],
+            Axis::X => [along, ITEM_HEIGHT, 0.5],
+            _ => [0.5, ITEM_HEIGHT, along],
         };
         draw.push();
         draw.translate(at);

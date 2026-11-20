@@ -267,23 +267,24 @@ Write-File 'data/create/recipe/milling/bone.json' (Milling-Json 'minecraft:bone'
 Write-File 'data/create/recipe/milling/blaze_rod.json' (Milling-Json 'minecraft:blaze_rod' 'minecraft:blaze_powder' 2 300)
 
 "Belt:"
-# Written for a shaft along x, so the items go along z: two rails with a body between them and
-# the shaft through it. The moving surface is drawn by the adapter, so the model has none.
+# Written for a shaft along z, which is the way the items go: two rails with a body between them.
+# Belts chain end to end like shafts. The moving surface is drawn by the adapter, so the model has none.
 $beltBody = @(
     (Elem @(1, 0, 0) @(3, 12, 16) 'casing'),
     (Elem @(3, 0, 0) @(13, 11, 16) 'casing'),
     (Elem @(13, 0, 0) @(15, 12, 16) 'casing'),
-    (Elem @(0, 4, 7) @(16, 8, 9) 'axle')
+    (Elem @(6, 3, 0) @(10, 7, 1) 'axle'),
+    (Elem @(6, 3, 15) @(10, 7, 16) 'axle')
 )
 $beltTextures = [ordered]@{ casing = 'create:block/dark_casing'; axle = 'create:block/steel'; surface = 'create:block/belt_surface'; particle = 'create:block/dark_casing' }
 Write-File 'assets/create/models/block/belt_body.json' (Model $beltTextures $beltBody)
 # The item's model has a surface of its own, since the block draws it moving.
 Write-File 'assets/create/models/block/belt_item.json' (Model $beltTextures ($beltBody + @((Elem @(3, 11, 0) @(13, 11.2, 16) 'surface'))))
-$beltShapes = "{`n    ""properties"": [""axis""],`n    ""values"": {`n      ""x"": [[0.0625, 0, 0, 0.9375, 0.75, 1]],`n      ""y"": [[0.0625, 0, 0, 0.9375, 0.75, 1]],`n      ""z"": [[0, 0, 0.0625, 1, 0.75, 0.9375]]`n    }`n  }"
+$beltShapes = "{`n    ""properties"": [""axis""],`n    ""values"": {`n      ""x"": [[0, 0, 0.0625, 1, 0.75, 0.9375]],`n      ""y"": [[0.0625, 0, 0, 0.9375, 0.75, 1]],`n      ""z"": [[0.0625, 0, 0, 0.9375, 0.75, 1]]`n    }`n  }"
 $beltState = "$speedProp,`n$reverseProp"
 Write-File 'data/create/horizon/block/belt.json' (Block-Json 'minecraft:oak_log' $beltState '"speed": "0", "reverse": "false"' 2.0 3.0 $true 'minecraft:andesite' $beltShapes)
 $lines = foreach ($a in 'x', 'y', 'z') { foreach ($r in 'false', 'true') { foreach ($s in $speeds) {
-    $turn = if ($a -eq 'z') { ', "y": 90' } else { '' }
+    $turn = if ($a -eq 'x') { ', "y": 90' } else { '' }
     "    ""axis=$a,reverse=$r,speed=$s"": { ""model"": ""create:block/belt_body""$turn }"
 } } }
 Write-File 'assets/create/blockstates/belt.json' (Variants $lines)
