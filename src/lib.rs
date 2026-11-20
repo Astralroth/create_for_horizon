@@ -20,6 +20,7 @@ mod messages;
 mod milling;
 mod millstone;
 mod motor;
+mod motor_screen;
 mod press;
 mod pressing;
 mod recipes;
@@ -690,6 +691,11 @@ impl BlockPart for Machine {
             );
             return Some(InteractionResult::SuccessServer);
         }
+        // A click on the motor opens its screen, which the game does when this answers nothing;
+        // the network report is what the gauges are for.
+        if level.block(host, click.pos)? == keys.motor {
+            return None;
+        }
         // A gauge reports the block it sits on; anything else reports itself.
         let block = level.block(host, click.pos)?;
         let start = if keys.is_gauge(block) {
@@ -800,6 +806,33 @@ impl BlockEntityPart for Kinetic {
         let _ = work(host, event);
         let _ = press::tick(host, event);
         let _ = millstone::tick(host, event);
+        let _ = motor_screen::sync(host, event);
+    }
+
+    /// The Creative Motor's screen: its layout, its drawing, a press on it and what the press
+    /// does on the server (see `motor_screen.rs`).
+    fn screen(
+        &self,
+        _: &dyn mod_api::Host,
+        event: &mut mod_api::ScreenEvent<'_>,
+    ) -> Option<mod_api::Screen> {
+        motor_screen::layout(event.block)
+    }
+
+    fn screen_draw(&self, _: &dyn ClientHost, event: &mut mod_api::ScreenDrawEvent<'_>) {
+        motor_screen::draw(event);
+    }
+
+    fn screen_click(
+        &self,
+        _: &dyn ClientHost,
+        event: &mut mod_api::ScreenClickEvent<'_>,
+    ) -> Option<i32> {
+        motor_screen::click(event)
+    }
+
+    fn menu_button(&self, host: &mut dyn ServerHost, event: &mut mod_api::MenuButtonEvent<'_>) {
+        motor_screen::press(host, event);
     }
 
     fn block_entity_submit(&self, host: &dyn ClientHost, event: &mut BlockEntitySubmitEvent<'_>) {
@@ -1027,6 +1060,9 @@ impl Hooks for CreateMod {
         registrar.register_raw_recipe_serializer(press::RECIPE_TYPE, press::RECIPE_TYPE);
         registrar.register_recipe_type(millstone::RECIPE_TYPE);
         registrar.register_raw_recipe_serializer(millstone::RECIPE_TYPE, millstone::RECIPE_TYPE);
+        // The motor opens a screen with a speed slider; the one slot is only there because a menu
+        // needs at least one.
+        registrar.block_container(&keys.motor, motor_screen::container());
         // The millstone's two slots: hoppers fill the input and empty the output.
         registrar.block_container(&keys.millstone, millstone::container());
         // The depot holds an item: a container for hoppers, clicks to put and take, and a block
