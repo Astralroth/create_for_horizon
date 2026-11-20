@@ -23,9 +23,9 @@ M0 to M3 are built and were tried in the game ("works well"). M6 (look and sound
 the user's request, ahead of M4 and M5, and its look and the M3 blocks were tried again through
 Agent Control (motor, shafts, wrench, cogs, drill, gauges, clutch, gearshift, gearbox); the
 sneak-click on the motor, Spanish and the sounds were not. M4 and M5 were built last and tried the
-same way: the water wheel, saw, harvester and plough worked; the hand crank needed a fix (its
-block definition inherited an `axis` from its template, so it never joined a shaft line) that is
-waiting for a second try. The test list under each milestone says what to try.
+same way and work: the hand crank (after a fix: its block definition had inherited an `axis` from
+its template, so it never joined a shaft line), the water wheel, the saw, the harvester and the
+plough. The test list under each milestone says what to try.
 
 ## M1 · Adjustable motor ◆ — built
 
@@ -67,7 +67,7 @@ is not. Test: turn a corner with a gearbox and check the direction after it; fee
 clutch with a lever beside it and watch it stop and start; reverse a line with a gearshift; put two
 reversed gearshifts in a row and confirm they cancel.
 
-## M4 · More sources — built; wheel tried, crank fixed and waiting
+## M4 · More sources — built and tried in the game
 
 Ways to make power other than the Creative Motor.
 
